@@ -8,6 +8,7 @@ import (
 	ispec "github.com/opencontainers/image-spec/specs-go/v1"
 	artifactspec "github.com/oras-project/artifacts-spec/specs-go/v1"
 
+	"zotregistry.io/zot/ent"
 	"zotregistry.io/zot/pkg/scheduler"
 )
 
@@ -52,4 +53,6 @@ type ImageStore interface { //nolint:interfacebloat
 	RunDedupeBlobs(interval time.Duration, sch *scheduler.Scheduler)
 	RunDedupeForDigest(digest godigest.Digest, dedupe bool, duplicateBlobs []string) error
 	GetNextDigestWithBlobPaths(lastDigests []godigest.Digest) (godigest.Digest, []string, error)
+	MarkStatement(repo string, descriptor ispec.Descriptor, eclient *ent.Client) error
+	GetStatementDescriptor(repo string, digest godigest.Digest) ([]byte, error)
 }

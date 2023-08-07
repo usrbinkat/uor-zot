@@ -23,6 +23,7 @@ import (
 	artifactspec "github.com/oras-project/artifacts-spec/specs-go/v1"
 	"github.com/rs/zerolog"
 
+	"zotregistry.io/zot/ent"
 	zerr "zotregistry.io/zot/errors"
 	zcommon "zotregistry.io/zot/pkg/common"
 	"zotregistry.io/zot/pkg/extensions/monitoring"
@@ -50,6 +51,16 @@ type ObjectStorage struct {
 	cache   cache.Cache
 	dedupe  bool
 	linter  common.Lint
+}
+
+// GetStatementDescriptor implements types.ImageStore.
+func (*ObjectStorage) GetStatementDescriptor(repo string, digest godigest.Digest) ([]byte, error) {
+	panic("unimplemented")
+}
+
+// MarkStatement implements types.ImageStore.
+func (*ObjectStorage) MarkStatement(repo string, descriptor ispec.Descriptor, eclient *ent.Client) error {
+	panic("unimplemented")
 }
 
 func (is *ObjectStorage) RootDir() string {

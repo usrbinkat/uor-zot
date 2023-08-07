@@ -19,6 +19,7 @@ import (
 	"github.com/gorilla/sessions"
 	"github.com/zitadel/oidc/pkg/client/rp"
 
+	"zotregistry.io/zot/ent"
 	"zotregistry.io/zot/errors"
 	"zotregistry.io/zot/pkg/api/config"
 	ext "zotregistry.io/zot/pkg/extensions"
@@ -27,6 +28,7 @@ import (
 	"zotregistry.io/zot/pkg/meta"
 	mTypes "zotregistry.io/zot/pkg/meta/types"
 	"zotregistry.io/zot/pkg/scheduler"
+	ssearch "zotregistry.io/zot/pkg/search"
 	"zotregistry.io/zot/pkg/storage"
 )
 
@@ -51,6 +53,7 @@ type Controller struct {
 	CookieStore     sessions.Store
 	// runtime params
 	chosenPort int // kernel-chosen port
+	EntClient  *ent.Client
 }
 
 func NewController(config *config.Config) *Controller {
@@ -233,6 +236,11 @@ func (c *Controller) Init(reloadCtx context.Context) error {
 	}
 
 	c.InitCVEInfo()
+	var err error
+	c.EntClient, err = ssearch.InitDatabase()
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

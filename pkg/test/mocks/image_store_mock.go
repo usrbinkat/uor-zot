@@ -8,6 +8,7 @@ import (
 	ispec "github.com/opencontainers/image-spec/specs-go/v1"
 	artifactspec "github.com/oras-project/artifacts-spec/specs-go/v1"
 
+	"zotregistry.io/zot/ent"
 	"zotregistry.io/zot/pkg/scheduler"
 )
 
@@ -51,6 +52,17 @@ type MockedImageStore struct {
 	RunDedupeBlobsFn             func(interval time.Duration, sch *scheduler.Scheduler)
 	RunDedupeForDigestFn         func(digest godigest.Digest, dedupe bool, duplicateBlobs []string) error
 	GetNextDigestWithBlobPathsFn func(lastDigests []godigest.Digest) (godigest.Digest, []string, error)
+	MarkStatementfn              func(repo string, descriptor ispec.Descriptor, eclient *ent.Client) error
+	GetStatementDescriptorfn     func(repo string, digest godigest.Digest) ([]byte, error)
+}
+
+// GetStatementDescriptor implements types.ImageStore.
+func (MockedImageStore) GetStatementDescriptor(repo string, digest godigest.Digest) ([]byte, error) {
+	panic("unimplemented")
+}
+
+func (is MockedImageStore) MarkStatement(repo string, descriptor ispec.Descriptor, eclient *ent.Client) error {
+	return nil
 }
 
 func (is MockedImageStore) Lock(t *time.Time) {

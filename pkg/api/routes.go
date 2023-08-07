@@ -723,6 +723,20 @@ func (rh *RouteHandler) UpdateManifest(response http.ResponseWriter, request *ht
 		return
 	}
 
+	// If there is a statement, mark its blob.
+	ubody := ispec.Manifest{}
+	if err := json.Unmarshal(body, &ubody); err != nil {
+		rh.c.Log.Error().Err(err).Msg("unexpected error")
+	}
+
+	targetMediaType := "application/vnd.oci.statement.v1+json"
+
+	for _, layer := range ubody.Layers {
+		if layer.MediaType == targetMediaType {
+			imgStore.MarkStatement(name, layer, rh.c.EntClient)
+		}
+	}
+
 	if rh.c.MetaDB != nil {
 		err := meta.OnUpdateManifest(name, reference, mediaType, digest, body, rh.c.StoreController, rh.c.MetaDB,
 			rh.c.Log)
@@ -1187,6 +1201,7 @@ func (rh *RouteHandler) CreateBlobUpload(response http.ResponseWriter, request *
 		return
 	}
 
+	var digest godigest.Digest
 	// a full blob upload if "digest" is present
 	digests, ok := request.URL.Query()["digest"]
 	if ok {
@@ -1207,7 +1222,7 @@ func (rh *RouteHandler) CreateBlobUpload(response http.ResponseWriter, request *
 
 		digestStr := digests[0]
 
-		digest := godigest.Digest(digestStr)
+		digest = godigest.Digest(digestStr)
 
 		var contentLength int64
 
@@ -1258,6 +1273,7 @@ func (rh *RouteHandler) CreateBlobUpload(response http.ResponseWriter, request *
 	response.Header().Set("Location", getBlobUploadSessionLocation(request.URL, upload))
 	response.Header().Set("Range", "0-0")
 	response.WriteHeader(http.StatusAccepted)
+
 }
 
 // GetBlobUpload godoc

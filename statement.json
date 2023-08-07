@@ -1,0 +1,24 @@
+{
+    "schemaVersion": 99,
+    "mediaType": "application/vnd.oci.statement.v1+json",
+    "subject":{
+        "subjectType": "localhost/testsubject/type:v1",
+        "noun":{
+            "test": "test subject"
+        }
+    },
+    "predicate":{
+        "predicateType": "localhost/testpredicate/type:v1",
+        "noun":{
+            "test": "test predicate"
+        }
+    },
+    "object":{
+        "objectType": "localhost/testobject/type:v1",
+        "noun":{
+            "testfirst":{
+                "testsecond": "test object"
+            }
+        }
+    }
+}
