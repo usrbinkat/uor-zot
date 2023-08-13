@@ -36,6 +36,7 @@ import (
 	zreg "zotregistry.io/zot/pkg/regexp"
 	"zotregistry.io/zot/pkg/scheduler"
 	"zotregistry.io/zot/pkg/search"
+	"zotregistry.io/zot/pkg/search/schema"
 	"zotregistry.io/zot/pkg/storage/cache"
 	common "zotregistry.io/zot/pkg/storage/common"
 	storageConstants "zotregistry.io/zot/pkg/storage/constants"
@@ -2031,40 +2032,56 @@ func (is *ImageStoreLocal) RunDedupeBlobs(interval time.Duration, sch *scheduler
 
 // MarkStatment creates a file in the blobs directory that indicates a statement.
 func (is *ImageStoreLocal) MarkStatement(repo string, descriptor ispec.Descriptor, eclient *ent.Client) error {
-	var lockLatency time.Time
+	//var lockLatency time.Time
 
-	fmt.Println("MarkStatement called")
+	/*
+		fmt.Println("MarkStatement called")
 
-	if err := descriptor.Digest.Validate(); err != nil {
-		return err
-	}
-
-	blobPath := is.BlobPath(repo, descriptor.Digest+".statement")
-	fmt.Printf("blobPath: %s\n", blobPath)
-
-	is.Lock(&lockLatency)
-	defer is.Unlock(&lockLatency)
-
-	_, err := os.Stat(blobPath)
-	if err != nil {
-		fmt.Println("blob does not exist")
-		//is.log.Debug().Err(err).Str("blob", blobPath).Msg("failed to stat blob")
-	} else {
-		if ok, _ := common.IsBlobReferenced(is, repo, descriptor.Digest, is.log); ok {
-			return zerr.ErrBlobReferenced
+		if err := descriptor.Digest.Validate(); err != nil {
+			return err
 		}
-	}
 
-	file, _ := json.Marshal(descriptor)
-	if err := is.writeFile(blobPath, []byte(file)); err != nil {
-		is.log.Error().Err(err).Str("file", blobPath).Msg("unable to write")
-		fmt.Printf("unable to write file %s\n", blobPath)
+		blobPath := is.BlobPath(repo, descriptor.Digest+".statement")
+		fmt.Printf("blobPath: %s\n", blobPath)
+
+		is.Lock(&lockLatency)
+		defer is.Unlock(&lockLatency)
+
+		_, err := os.Stat(blobPath)
+		if err != nil {
+			fmt.Println("blob does not exist")
+			is.log.Debug().Err(err).Str("blob", blobPath).Msg("failed to stat blob")
+		} else {
+			if ok, _ := common.IsBlobReferenced(is, repo, descriptor.Digest, is.log); ok {
+				return zerr.ErrBlobReferenced
+			}
+		}
+
+	*/
+
+	//file, _ := json.Marshal(descriptor)
+	//if err := is.writeFile(blobPath, []byte(file)); err != nil {
+	//	is.log.Error().Err(err).Str("file", blobPath).Msg("unable to write")
+	//	fmt.Printf("unable to write file %s\n", blobPath)
+	//	return err
+	//} else {
+	//	fmt.Printf("wrote file %s\n", blobPath)
+	//}
+
+	statement, err := is.GetBlobContent(repo, descriptor.Digest)
+	if err != nil {
+		fmt.Println("error getting blob content")
 		return err
-	} else {
-		fmt.Printf("wrote file %s\n", blobPath)
 	}
 
-	if err := search.AddStatement(is, repo, descriptor.Digest, eclient); err != nil {
+	ustatement := schema.Statement{}
+	if err := json.Unmarshal(statement, &ustatement); err != nil {
+		fmt.Println("error unmarshalling statement")
+		return err
+	}
+	fmt.Printf("unmarshalled statement: %v\n", ustatement)
+
+	if err := search.AddStatement(ustatement, repo, descriptor, eclient); err != nil {
 		fmt.Printf("add statment err: %s", err)
 
 	}

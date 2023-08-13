@@ -6,13 +6,11 @@ import (
 	"fmt"
 	"log"
 
+	ispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"zotregistry.io/zot/ent"
 
 	_ "github.com/mattn/go-sqlite3"
-	godigest "github.com/opencontainers/go-digest"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
-	"zotregistry.io/zot/pkg/search/schema"
-	storageTypes "zotregistry.io/zot/pkg/storage/types"
+	sschema "zotregistry.io/zot/pkg/search/schema"
 )
 
 func InitDatabase() (*ent.Client, error) {
@@ -30,57 +28,59 @@ func InitDatabase() (*ent.Client, error) {
 	return client, nil
 }
 
-func AddStatement(imgStore storageTypes.ImageStore, repo string, digest godigest.Digest, eclient *ent.Client) error {
+func AddStatement(statement sschema.Statement, repo string, descriptor ispec.Descriptor, eclient *ent.Client) error {
 	fmt.Println("AddStatement called")
-	sdescriptor, err := imgStore.GetStatementDescriptor(repo, digest)
-	if err != nil {
-		fmt.Println("No statement found")
-		return err
-	}
-	var uDescriptor specs.Descriptor
-	if err := json.Unmarshal(sdescriptor, &uDescriptor); err != nil {
-		fmt.Println("error unmarshalling statement descriptor")
-		return err
-	}
-	fmt.Printf("unmarshalled descriptor: %v\n", uDescriptor)
 
-	statement, err := imgStore.GetBlobContent(repo, digest)
-	if err != nil {
-		fmt.Println("error getting blob content")
-		return err
-	}
-	fmt.Printf("statementfound: %v\n", string(statement))
-	uStatement := schema.Statement{}
-	if err := json.Unmarshal(statement, &uStatement); err != nil {
-		fmt.Println("error unmarshalling statement")
-		return err
-	}
-	fmt.Printf("unmarshalled statement: %v\n", uStatement)
-
-	record := schema.StatementRecord{}
-	fmt.Println("empty record formed")
-	record.Statement = &uStatement
-	fmt.Println("statement added to formed record")
-	record.Location = &schema.Location{}
-	record.Location.Descriptor = uDescriptor
-	fmt.Println("location added to formed record")
-	record.Location.Namespace = repo
-	fmt.Println("namespace added to formed record")
-
-	recordbytes, err := json.Marshal(record)
-	if err != nil {
-		fmt.Println("error marshalling record")
-		return err
-	}
-	fmt.Printf("record to be written: %v\n", string(recordbytes))
 	ctx := context.Background()
 
-	indexed, err := eclient.StatementIndex.
+	object, err := eclient.Object.
 		Create().
-		SetPredicate(*record.Statement.Predicate).
-		SetSubject(*record.Statement.Subject).
-		SetObject(*record.Statement.Object).
-		SetStatement(*record.Location).
+		SetObject(statement.Object.Noun).
+		SetObjectType(statement.Object.ObjectType).
+		Save(ctx)
+	if err != nil {
+		fmt.Println("error saving statement")
+		return err
+	}
+	fmt.Printf("u: %v\n", object)
+
+	predicate, err := eclient.Spredicate.
+		Create().
+		SetPredicate(statement.Predicate.Noun).
+		SetPredicateType(statement.Predicate.PredicateType).
+		Save(ctx)
+	if err != nil {
+		fmt.Println("error saving statement")
+		return err
+	}
+	fmt.Printf("u: %v\n", predicate)
+
+	subject, err := eclient.Subject.
+		Create().
+		SetSubject(statement.Subject.Noun).
+		SetSubjectType(statement.Subject.SubjectType).
+		Save(ctx)
+	if err != nil {
+		fmt.Println("error saving statement")
+		return err
+	}
+	fmt.Printf("u: %v\n", subject)
+
+	bytes, err := json.Marshal(descriptor)
+	if err != nil {
+		fmt.Printf("Marshalling error: %v", err)
+	}
+	var mdescriptor map[string]interface{}
+	if err := json.Unmarshal(bytes, &mdescriptor); err != nil {
+		fmt.Printf("unmarshalling error: %v", err)
+	}
+	indexed, err := eclient.Statement.
+		Create().
+		AddSubjects(subject).
+		AddObjects(object).
+		AddPredicates(predicate).
+		SetStatement(mdescriptor).
+		SetNamespace(repo).
 		Save(ctx)
 	if err != nil {
 		fmt.Println("error saving statement")

@@ -1,3 +1,4 @@
-package ent
+package zot
 
-//go:generate go run -mod=mod entgo.io/ent/cmd/ent generate./package/search/schema
+//go:generate go run -mod=mod ./ent/entc.go
+//go:generate go run -mod=mod github.com/99designs/gqlgen

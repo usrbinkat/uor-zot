@@ -10,9 +10,11 @@ import (
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
+	"zotregistry.io/zot/ent/object"
 	"zotregistry.io/zot/ent/predicate"
-	"zotregistry.io/zot/ent/statementindex"
-	"zotregistry.io/zot/pkg/search/schema"
+	"zotregistry.io/zot/ent/spredicate"
+	"zotregistry.io/zot/ent/statement"
+	"zotregistry.io/zot/ent/subject"
 )
 
 const (
@@ -24,36 +26,40 @@ const (
 	OpUpdateOne = ent.OpUpdateOne
 
 	// Node types.
-	TypeStatementIndex = "StatementIndex"
+	TypeObject     = "Object"
+	TypeSpredicate = "Spredicate"
+	TypeStatement  = "Statement"
+	TypeSubject    = "Subject"
 )
 
-// StatementIndexMutation represents an operation that mutates the StatementIndex nodes in the graph.
-type StatementIndexMutation struct {
+// ObjectMutation represents an operation that mutates the Object nodes in the graph.
+type ObjectMutation struct {
 	config
-	op            Op
-	typ           string
-	id            *int
-	object        *schema.Object
-	predicate     *schema.Predicate
-	subject       *schema.Subject
-	statement     *schema.Location
-	clearedFields map[string]struct{}
-	done          bool
-	oldValue      func(context.Context) (*StatementIndex, error)
-	predicates    []predicate.StatementIndex
+	op               Op
+	typ              string
+	id               *int
+	objectType       *string
+	object           *map[string]interface{}
+	clearedFields    map[string]struct{}
+	statement        map[int]struct{}
+	removedstatement map[int]struct{}
+	clearedstatement bool
+	done             bool
+	oldValue         func(context.Context) (*Object, error)
+	predicates       []predicate.Object
 }
 
-var _ ent.Mutation = (*StatementIndexMutation)(nil)
+var _ ent.Mutation = (*ObjectMutation)(nil)
 
-// statementindexOption allows management of the mutation configuration using functional options.
-type statementindexOption func(*StatementIndexMutation)
+// objectOption allows management of the mutation configuration using functional options.
+type objectOption func(*ObjectMutation)
 
-// newStatementIndexMutation creates new mutation for the StatementIndex entity.
-func newStatementIndexMutation(c config, op Op, opts ...statementindexOption) *StatementIndexMutation {
-	m := &StatementIndexMutation{
+// newObjectMutation creates new mutation for the Object entity.
+func newObjectMutation(c config, op Op, opts ...objectOption) *ObjectMutation {
+	m := &ObjectMutation{
 		config:        c,
 		op:            op,
-		typ:           TypeStatementIndex,
+		typ:           TypeObject,
 		clearedFields: make(map[string]struct{}),
 	}
 	for _, opt := range opts {
@@ -62,20 +68,20 @@ func newStatementIndexMutation(c config, op Op, opts ...statementindexOption) *S
 	return m
 }
 
-// withStatementIndexID sets the ID field of the mutation.
-func withStatementIndexID(id int) statementindexOption {
-	return func(m *StatementIndexMutation) {
+// withObjectID sets the ID field of the mutation.
+func withObjectID(id int) objectOption {
+	return func(m *ObjectMutation) {
 		var (
 			err   error
 			once  sync.Once
-			value *StatementIndex
+			value *Object
 		)
-		m.oldValue = func(ctx context.Context) (*StatementIndex, error) {
+		m.oldValue = func(ctx context.Context) (*Object, error) {
 			once.Do(func() {
 				if m.done {
 					err = errors.New("querying old values post mutation is not allowed")
 				} else {
-					value, err = m.Client().StatementIndex.Get(ctx, id)
+					value, err = m.Client().Object.Get(ctx, id)
 				}
 			})
 			return value, err
@@ -84,10 +90,10 @@ func withStatementIndexID(id int) statementindexOption {
 	}
 }
 
-// withStatementIndex sets the old StatementIndex of the mutation.
-func withStatementIndex(node *StatementIndex) statementindexOption {
-	return func(m *StatementIndexMutation) {
-		m.oldValue = func(context.Context) (*StatementIndex, error) {
+// withObject sets the old Object of the mutation.
+func withObject(node *Object) objectOption {
+	return func(m *ObjectMutation) {
+		m.oldValue = func(context.Context) (*Object, error) {
 			return node, nil
 		}
 		m.id = &node.ID
@@ -96,7 +102,7 @@ func withStatementIndex(node *StatementIndex) statementindexOption {
 
 // Client returns a new `ent.Client` from the mutation. If the mutation was
 // executed in a transaction (ent.Tx), a transactional client is returned.
-func (m StatementIndexMutation) Client() *Client {
+func (m ObjectMutation) Client() *Client {
 	client := &Client{config: m.config}
 	client.init()
 	return client
@@ -104,7 +110,7 @@ func (m StatementIndexMutation) Client() *Client {
 
 // Tx returns an `ent.Tx` for mutations that were executed in transactions;
 // it returns an error otherwise.
-func (m StatementIndexMutation) Tx() (*Tx, error) {
+func (m ObjectMutation) Tx() (*Tx, error) {
 	if _, ok := m.driver.(*txDriver); !ok {
 		return nil, errors.New("ent: mutation is not running in a transaction")
 	}
@@ -115,7 +121,7 @@ func (m StatementIndexMutation) Tx() (*Tx, error) {
 
 // ID returns the ID value in the mutation. Note that the ID is only available
 // if it was provided to the builder or after it was returned from the database.
-func (m *StatementIndexMutation) ID() (id int, exists bool) {
+func (m *ObjectMutation) ID() (id int, exists bool) {
 	if m.id == nil {
 		return
 	}
@@ -126,7 +132,7 @@ func (m *StatementIndexMutation) ID() (id int, exists bool) {
 // That means, if the mutation is applied within a transaction with an isolation level such
 // as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
 // or updated by the mutation.
-func (m *StatementIndexMutation) IDs(ctx context.Context) ([]int, error) {
+func (m *ObjectMutation) IDs(ctx context.Context) ([]int, error) {
 	switch {
 	case m.op.Is(OpUpdateOne | OpDeleteOne):
 		id, exists := m.ID()
@@ -135,19 +141,55 @@ func (m *StatementIndexMutation) IDs(ctx context.Context) ([]int, error) {
 		}
 		fallthrough
 	case m.op.Is(OpUpdate | OpDelete):
-		return m.Client().StatementIndex.Query().Where(m.predicates...).IDs(ctx)
+		return m.Client().Object.Query().Where(m.predicates...).IDs(ctx)
 	default:
 		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
 	}
 }
 
+// SetObjectType sets the "objectType" field.
+func (m *ObjectMutation) SetObjectType(s string) {
+	m.objectType = &s
+}
+
+// ObjectType returns the value of the "objectType" field in the mutation.
+func (m *ObjectMutation) ObjectType() (r string, exists bool) {
+	v := m.objectType
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldObjectType returns the old "objectType" field's value of the Object entity.
+// If the Object object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ObjectMutation) OldObjectType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldObjectType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldObjectType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldObjectType: %w", err)
+	}
+	return oldValue.ObjectType, nil
+}
+
+// ResetObjectType resets all changes to the "objectType" field.
+func (m *ObjectMutation) ResetObjectType() {
+	m.objectType = nil
+}
+
 // SetObject sets the "object" field.
-func (m *StatementIndexMutation) SetObject(s schema.Object) {
-	m.object = &s
+func (m *ObjectMutation) SetObject(value map[string]interface{}) {
+	m.object = &value
 }
 
 // Object returns the value of the "object" field in the mutation.
-func (m *StatementIndexMutation) Object() (r schema.Object, exists bool) {
+func (m *ObjectMutation) Object() (r map[string]interface{}, exists bool) {
 	v := m.object
 	if v == nil {
 		return
@@ -155,10 +197,10 @@ func (m *StatementIndexMutation) Object() (r schema.Object, exists bool) {
 	return *v, true
 }
 
-// OldObject returns the old "object" field's value of the StatementIndex entity.
-// If the StatementIndex object wasn't provided to the builder, the object is fetched from the database.
+// OldObject returns the old "object" field's value of the Object entity.
+// If the Object object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *StatementIndexMutation) OldObject(ctx context.Context) (v schema.Object, err error) {
+func (m *ObjectMutation) OldObject(ctx context.Context) (v map[string]interface{}, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldObject is only allowed on UpdateOne operations")
 	}
@@ -173,17 +215,454 @@ func (m *StatementIndexMutation) OldObject(ctx context.Context) (v schema.Object
 }
 
 // ResetObject resets all changes to the "object" field.
-func (m *StatementIndexMutation) ResetObject() {
+func (m *ObjectMutation) ResetObject() {
 	m.object = nil
 }
 
+// AddStatementIDs adds the "statement" edge to the Statement entity by ids.
+func (m *ObjectMutation) AddStatementIDs(ids ...int) {
+	if m.statement == nil {
+		m.statement = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.statement[ids[i]] = struct{}{}
+	}
+}
+
+// ClearStatement clears the "statement" edge to the Statement entity.
+func (m *ObjectMutation) ClearStatement() {
+	m.clearedstatement = true
+}
+
+// StatementCleared reports if the "statement" edge to the Statement entity was cleared.
+func (m *ObjectMutation) StatementCleared() bool {
+	return m.clearedstatement
+}
+
+// RemoveStatementIDs removes the "statement" edge to the Statement entity by IDs.
+func (m *ObjectMutation) RemoveStatementIDs(ids ...int) {
+	if m.removedstatement == nil {
+		m.removedstatement = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.statement, ids[i])
+		m.removedstatement[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedStatement returns the removed IDs of the "statement" edge to the Statement entity.
+func (m *ObjectMutation) RemovedStatementIDs() (ids []int) {
+	for id := range m.removedstatement {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// StatementIDs returns the "statement" edge IDs in the mutation.
+func (m *ObjectMutation) StatementIDs() (ids []int) {
+	for id := range m.statement {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetStatement resets all changes to the "statement" edge.
+func (m *ObjectMutation) ResetStatement() {
+	m.statement = nil
+	m.clearedstatement = false
+	m.removedstatement = nil
+}
+
+// Where appends a list predicates to the ObjectMutation builder.
+func (m *ObjectMutation) Where(ps ...predicate.Object) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the ObjectMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *ObjectMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.Object, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *ObjectMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *ObjectMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (Object).
+func (m *ObjectMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *ObjectMutation) Fields() []string {
+	fields := make([]string, 0, 2)
+	if m.objectType != nil {
+		fields = append(fields, object.FieldObjectType)
+	}
+	if m.object != nil {
+		fields = append(fields, object.FieldObject)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *ObjectMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case object.FieldObjectType:
+		return m.ObjectType()
+	case object.FieldObject:
+		return m.Object()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *ObjectMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case object.FieldObjectType:
+		return m.OldObjectType(ctx)
+	case object.FieldObject:
+		return m.OldObject(ctx)
+	}
+	return nil, fmt.Errorf("unknown Object field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *ObjectMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case object.FieldObjectType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetObjectType(v)
+		return nil
+	case object.FieldObject:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetObject(v)
+		return nil
+	}
+	return fmt.Errorf("unknown Object field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *ObjectMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *ObjectMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *ObjectMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown Object numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *ObjectMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *ObjectMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *ObjectMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown Object nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *ObjectMutation) ResetField(name string) error {
+	switch name {
+	case object.FieldObjectType:
+		m.ResetObjectType()
+		return nil
+	case object.FieldObject:
+		m.ResetObject()
+		return nil
+	}
+	return fmt.Errorf("unknown Object field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *ObjectMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.statement != nil {
+		edges = append(edges, object.EdgeStatement)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *ObjectMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case object.EdgeStatement:
+		ids := make([]ent.Value, 0, len(m.statement))
+		for id := range m.statement {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *ObjectMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.removedstatement != nil {
+		edges = append(edges, object.EdgeStatement)
+	}
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *ObjectMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case object.EdgeStatement:
+		ids := make([]ent.Value, 0, len(m.removedstatement))
+		for id := range m.removedstatement {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *ObjectMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearedstatement {
+		edges = append(edges, object.EdgeStatement)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *ObjectMutation) EdgeCleared(name string) bool {
+	switch name {
+	case object.EdgeStatement:
+		return m.clearedstatement
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *ObjectMutation) ClearEdge(name string) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown Object unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *ObjectMutation) ResetEdge(name string) error {
+	switch name {
+	case object.EdgeStatement:
+		m.ResetStatement()
+		return nil
+	}
+	return fmt.Errorf("unknown Object edge %s", name)
+}
+
+// SpredicateMutation represents an operation that mutates the Spredicate nodes in the graph.
+type SpredicateMutation struct {
+	config
+	op               Op
+	typ              string
+	id               *int
+	predicateType    *string
+	predicate        *map[string]interface{}
+	clearedFields    map[string]struct{}
+	statement        map[int]struct{}
+	removedstatement map[int]struct{}
+	clearedstatement bool
+	done             bool
+	oldValue         func(context.Context) (*Spredicate, error)
+	predicates       []predicate.Spredicate
+}
+
+var _ ent.Mutation = (*SpredicateMutation)(nil)
+
+// spredicateOption allows management of the mutation configuration using functional options.
+type spredicateOption func(*SpredicateMutation)
+
+// newSpredicateMutation creates new mutation for the Spredicate entity.
+func newSpredicateMutation(c config, op Op, opts ...spredicateOption) *SpredicateMutation {
+	m := &SpredicateMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeSpredicate,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withSpredicateID sets the ID field of the mutation.
+func withSpredicateID(id int) spredicateOption {
+	return func(m *SpredicateMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *Spredicate
+		)
+		m.oldValue = func(ctx context.Context) (*Spredicate, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().Spredicate.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withSpredicate sets the old Spredicate of the mutation.
+func withSpredicate(node *Spredicate) spredicateOption {
+	return func(m *SpredicateMutation) {
+		m.oldValue = func(context.Context) (*Spredicate, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m SpredicateMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m SpredicateMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *SpredicateMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *SpredicateMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().Spredicate.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetPredicateType sets the "predicateType" field.
+func (m *SpredicateMutation) SetPredicateType(s string) {
+	m.predicateType = &s
+}
+
+// PredicateType returns the value of the "predicateType" field in the mutation.
+func (m *SpredicateMutation) PredicateType() (r string, exists bool) {
+	v := m.predicateType
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPredicateType returns the old "predicateType" field's value of the Spredicate entity.
+// If the Spredicate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SpredicateMutation) OldPredicateType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPredicateType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPredicateType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPredicateType: %w", err)
+	}
+	return oldValue.PredicateType, nil
+}
+
+// ResetPredicateType resets all changes to the "predicateType" field.
+func (m *SpredicateMutation) ResetPredicateType() {
+	m.predicateType = nil
+}
+
 // SetPredicate sets the "predicate" field.
-func (m *StatementIndexMutation) SetPredicate(s schema.Predicate) {
-	m.predicate = &s
+func (m *SpredicateMutation) SetPredicate(value map[string]interface{}) {
+	m.predicate = &value
 }
 
 // Predicate returns the value of the "predicate" field in the mutation.
-func (m *StatementIndexMutation) Predicate() (r schema.Predicate, exists bool) {
+func (m *SpredicateMutation) Predicate() (r map[string]interface{}, exists bool) {
 	v := m.predicate
 	if v == nil {
 		return
@@ -191,10 +670,10 @@ func (m *StatementIndexMutation) Predicate() (r schema.Predicate, exists bool) {
 	return *v, true
 }
 
-// OldPredicate returns the old "predicate" field's value of the StatementIndex entity.
-// If the StatementIndex object wasn't provided to the builder, the object is fetched from the database.
+// OldPredicate returns the old "predicate" field's value of the Spredicate entity.
+// If the Spredicate object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *StatementIndexMutation) OldPredicate(ctx context.Context) (v schema.Predicate, err error) {
+func (m *SpredicateMutation) OldPredicate(ctx context.Context) (v map[string]interface{}, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldPredicate is only allowed on UpdateOne operations")
 	}
@@ -209,53 +688,460 @@ func (m *StatementIndexMutation) OldPredicate(ctx context.Context) (v schema.Pre
 }
 
 // ResetPredicate resets all changes to the "predicate" field.
-func (m *StatementIndexMutation) ResetPredicate() {
+func (m *SpredicateMutation) ResetPredicate() {
 	m.predicate = nil
 }
 
-// SetSubject sets the "subject" field.
-func (m *StatementIndexMutation) SetSubject(s schema.Subject) {
-	m.subject = &s
+// AddStatementIDs adds the "statement" edge to the Statement entity by ids.
+func (m *SpredicateMutation) AddStatementIDs(ids ...int) {
+	if m.statement == nil {
+		m.statement = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.statement[ids[i]] = struct{}{}
+	}
 }
 
-// Subject returns the value of the "subject" field in the mutation.
-func (m *StatementIndexMutation) Subject() (r schema.Subject, exists bool) {
-	v := m.subject
+// ClearStatement clears the "statement" edge to the Statement entity.
+func (m *SpredicateMutation) ClearStatement() {
+	m.clearedstatement = true
+}
+
+// StatementCleared reports if the "statement" edge to the Statement entity was cleared.
+func (m *SpredicateMutation) StatementCleared() bool {
+	return m.clearedstatement
+}
+
+// RemoveStatementIDs removes the "statement" edge to the Statement entity by IDs.
+func (m *SpredicateMutation) RemoveStatementIDs(ids ...int) {
+	if m.removedstatement == nil {
+		m.removedstatement = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.statement, ids[i])
+		m.removedstatement[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedStatement returns the removed IDs of the "statement" edge to the Statement entity.
+func (m *SpredicateMutation) RemovedStatementIDs() (ids []int) {
+	for id := range m.removedstatement {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// StatementIDs returns the "statement" edge IDs in the mutation.
+func (m *SpredicateMutation) StatementIDs() (ids []int) {
+	for id := range m.statement {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetStatement resets all changes to the "statement" edge.
+func (m *SpredicateMutation) ResetStatement() {
+	m.statement = nil
+	m.clearedstatement = false
+	m.removedstatement = nil
+}
+
+// Where appends a list predicates to the SpredicateMutation builder.
+func (m *SpredicateMutation) Where(ps ...predicate.Spredicate) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the SpredicateMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *SpredicateMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.Spredicate, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *SpredicateMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *SpredicateMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (Spredicate).
+func (m *SpredicateMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *SpredicateMutation) Fields() []string {
+	fields := make([]string, 0, 2)
+	if m.predicateType != nil {
+		fields = append(fields, spredicate.FieldPredicateType)
+	}
+	if m.predicate != nil {
+		fields = append(fields, spredicate.FieldPredicate)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *SpredicateMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case spredicate.FieldPredicateType:
+		return m.PredicateType()
+	case spredicate.FieldPredicate:
+		return m.Predicate()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *SpredicateMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case spredicate.FieldPredicateType:
+		return m.OldPredicateType(ctx)
+	case spredicate.FieldPredicate:
+		return m.OldPredicate(ctx)
+	}
+	return nil, fmt.Errorf("unknown Spredicate field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *SpredicateMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case spredicate.FieldPredicateType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPredicateType(v)
+		return nil
+	case spredicate.FieldPredicate:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPredicate(v)
+		return nil
+	}
+	return fmt.Errorf("unknown Spredicate field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *SpredicateMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *SpredicateMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *SpredicateMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown Spredicate numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *SpredicateMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *SpredicateMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *SpredicateMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown Spredicate nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *SpredicateMutation) ResetField(name string) error {
+	switch name {
+	case spredicate.FieldPredicateType:
+		m.ResetPredicateType()
+		return nil
+	case spredicate.FieldPredicate:
+		m.ResetPredicate()
+		return nil
+	}
+	return fmt.Errorf("unknown Spredicate field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *SpredicateMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.statement != nil {
+		edges = append(edges, spredicate.EdgeStatement)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *SpredicateMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case spredicate.EdgeStatement:
+		ids := make([]ent.Value, 0, len(m.statement))
+		for id := range m.statement {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *SpredicateMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.removedstatement != nil {
+		edges = append(edges, spredicate.EdgeStatement)
+	}
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *SpredicateMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case spredicate.EdgeStatement:
+		ids := make([]ent.Value, 0, len(m.removedstatement))
+		for id := range m.removedstatement {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *SpredicateMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearedstatement {
+		edges = append(edges, spredicate.EdgeStatement)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *SpredicateMutation) EdgeCleared(name string) bool {
+	switch name {
+	case spredicate.EdgeStatement:
+		return m.clearedstatement
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *SpredicateMutation) ClearEdge(name string) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown Spredicate unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *SpredicateMutation) ResetEdge(name string) error {
+	switch name {
+	case spredicate.EdgeStatement:
+		m.ResetStatement()
+		return nil
+	}
+	return fmt.Errorf("unknown Spredicate edge %s", name)
+}
+
+// StatementMutation represents an operation that mutates the Statement nodes in the graph.
+type StatementMutation struct {
+	config
+	op                 Op
+	typ                string
+	id                 *int
+	namespace          *string
+	statement          *map[string]interface{}
+	clearedFields      map[string]struct{}
+	objects            map[int]struct{}
+	removedobjects     map[int]struct{}
+	clearedobjects     bool
+	_predicates        map[int]struct{}
+	removed_predicates map[int]struct{}
+	cleared_predicates bool
+	subjects           map[int]struct{}
+	removedsubjects    map[int]struct{}
+	clearedsubjects    bool
+	done               bool
+	oldValue           func(context.Context) (*Statement, error)
+	predicates         []predicate.Statement
+}
+
+var _ ent.Mutation = (*StatementMutation)(nil)
+
+// statementOption allows management of the mutation configuration using functional options.
+type statementOption func(*StatementMutation)
+
+// newStatementMutation creates new mutation for the Statement entity.
+func newStatementMutation(c config, op Op, opts ...statementOption) *StatementMutation {
+	m := &StatementMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeStatement,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withStatementID sets the ID field of the mutation.
+func withStatementID(id int) statementOption {
+	return func(m *StatementMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *Statement
+		)
+		m.oldValue = func(ctx context.Context) (*Statement, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().Statement.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withStatement sets the old Statement of the mutation.
+func withStatement(node *Statement) statementOption {
+	return func(m *StatementMutation) {
+		m.oldValue = func(context.Context) (*Statement, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m StatementMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m StatementMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *StatementMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *StatementMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().Statement.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetNamespace sets the "namespace" field.
+func (m *StatementMutation) SetNamespace(s string) {
+	m.namespace = &s
+}
+
+// Namespace returns the value of the "namespace" field in the mutation.
+func (m *StatementMutation) Namespace() (r string, exists bool) {
+	v := m.namespace
 	if v == nil {
 		return
 	}
 	return *v, true
 }
 
-// OldSubject returns the old "subject" field's value of the StatementIndex entity.
-// If the StatementIndex object wasn't provided to the builder, the object is fetched from the database.
+// OldNamespace returns the old "namespace" field's value of the Statement entity.
+// If the Statement object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *StatementIndexMutation) OldSubject(ctx context.Context) (v schema.Subject, err error) {
+func (m *StatementMutation) OldNamespace(ctx context.Context) (v string, err error) {
 	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldSubject is only allowed on UpdateOne operations")
+		return v, errors.New("OldNamespace is only allowed on UpdateOne operations")
 	}
 	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldSubject requires an ID field in the mutation")
+		return v, errors.New("OldNamespace requires an ID field in the mutation")
 	}
 	oldValue, err := m.oldValue(ctx)
 	if err != nil {
-		return v, fmt.Errorf("querying old value for OldSubject: %w", err)
+		return v, fmt.Errorf("querying old value for OldNamespace: %w", err)
 	}
-	return oldValue.Subject, nil
+	return oldValue.Namespace, nil
 }
 
-// ResetSubject resets all changes to the "subject" field.
-func (m *StatementIndexMutation) ResetSubject() {
-	m.subject = nil
+// ResetNamespace resets all changes to the "namespace" field.
+func (m *StatementMutation) ResetNamespace() {
+	m.namespace = nil
 }
 
 // SetStatement sets the "statement" field.
-func (m *StatementIndexMutation) SetStatement(s schema.Location) {
-	m.statement = &s
+func (m *StatementMutation) SetStatement(value map[string]interface{}) {
+	m.statement = &value
 }
 
 // Statement returns the value of the "statement" field in the mutation.
-func (m *StatementIndexMutation) Statement() (r schema.Location, exists bool) {
+func (m *StatementMutation) Statement() (r map[string]interface{}, exists bool) {
 	v := m.statement
 	if v == nil {
 		return
@@ -263,10 +1149,10 @@ func (m *StatementIndexMutation) Statement() (r schema.Location, exists bool) {
 	return *v, true
 }
 
-// OldStatement returns the old "statement" field's value of the StatementIndex entity.
-// If the StatementIndex object wasn't provided to the builder, the object is fetched from the database.
+// OldStatement returns the old "statement" field's value of the Statement entity.
+// If the Statement object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *StatementIndexMutation) OldStatement(ctx context.Context) (v schema.Location, err error) {
+func (m *StatementMutation) OldStatement(ctx context.Context) (v map[string]interface{}, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldStatement is only allowed on UpdateOne operations")
 	}
@@ -281,19 +1167,181 @@ func (m *StatementIndexMutation) OldStatement(ctx context.Context) (v schema.Loc
 }
 
 // ResetStatement resets all changes to the "statement" field.
-func (m *StatementIndexMutation) ResetStatement() {
+func (m *StatementMutation) ResetStatement() {
 	m.statement = nil
 }
 
-// Where appends a list predicates to the StatementIndexMutation builder.
-func (m *StatementIndexMutation) Where(ps ...predicate.StatementIndex) {
+// AddObjectIDs adds the "objects" edge to the Object entity by ids.
+func (m *StatementMutation) AddObjectIDs(ids ...int) {
+	if m.objects == nil {
+		m.objects = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.objects[ids[i]] = struct{}{}
+	}
+}
+
+// ClearObjects clears the "objects" edge to the Object entity.
+func (m *StatementMutation) ClearObjects() {
+	m.clearedobjects = true
+}
+
+// ObjectsCleared reports if the "objects" edge to the Object entity was cleared.
+func (m *StatementMutation) ObjectsCleared() bool {
+	return m.clearedobjects
+}
+
+// RemoveObjectIDs removes the "objects" edge to the Object entity by IDs.
+func (m *StatementMutation) RemoveObjectIDs(ids ...int) {
+	if m.removedobjects == nil {
+		m.removedobjects = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.objects, ids[i])
+		m.removedobjects[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedObjects returns the removed IDs of the "objects" edge to the Object entity.
+func (m *StatementMutation) RemovedObjectsIDs() (ids []int) {
+	for id := range m.removedobjects {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ObjectsIDs returns the "objects" edge IDs in the mutation.
+func (m *StatementMutation) ObjectsIDs() (ids []int) {
+	for id := range m.objects {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetObjects resets all changes to the "objects" edge.
+func (m *StatementMutation) ResetObjects() {
+	m.objects = nil
+	m.clearedobjects = false
+	m.removedobjects = nil
+}
+
+// AddPredicateIDs adds the "predicates" edge to the Spredicate entity by ids.
+func (m *StatementMutation) AddPredicateIDs(ids ...int) {
+	if m._predicates == nil {
+		m._predicates = make(map[int]struct{})
+	}
+	for i := range ids {
+		m._predicates[ids[i]] = struct{}{}
+	}
+}
+
+// ClearPredicates clears the "predicates" edge to the Spredicate entity.
+func (m *StatementMutation) ClearPredicates() {
+	m.cleared_predicates = true
+}
+
+// PredicatesCleared reports if the "predicates" edge to the Spredicate entity was cleared.
+func (m *StatementMutation) PredicatesCleared() bool {
+	return m.cleared_predicates
+}
+
+// RemovePredicateIDs removes the "predicates" edge to the Spredicate entity by IDs.
+func (m *StatementMutation) RemovePredicateIDs(ids ...int) {
+	if m.removed_predicates == nil {
+		m.removed_predicates = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m._predicates, ids[i])
+		m.removed_predicates[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedPredicates returns the removed IDs of the "predicates" edge to the Spredicate entity.
+func (m *StatementMutation) RemovedPredicatesIDs() (ids []int) {
+	for id := range m.removed_predicates {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// PredicatesIDs returns the "predicates" edge IDs in the mutation.
+func (m *StatementMutation) PredicatesIDs() (ids []int) {
+	for id := range m._predicates {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetPredicates resets all changes to the "predicates" edge.
+func (m *StatementMutation) ResetPredicates() {
+	m._predicates = nil
+	m.cleared_predicates = false
+	m.removed_predicates = nil
+}
+
+// AddSubjectIDs adds the "subjects" edge to the Subject entity by ids.
+func (m *StatementMutation) AddSubjectIDs(ids ...int) {
+	if m.subjects == nil {
+		m.subjects = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.subjects[ids[i]] = struct{}{}
+	}
+}
+
+// ClearSubjects clears the "subjects" edge to the Subject entity.
+func (m *StatementMutation) ClearSubjects() {
+	m.clearedsubjects = true
+}
+
+// SubjectsCleared reports if the "subjects" edge to the Subject entity was cleared.
+func (m *StatementMutation) SubjectsCleared() bool {
+	return m.clearedsubjects
+}
+
+// RemoveSubjectIDs removes the "subjects" edge to the Subject entity by IDs.
+func (m *StatementMutation) RemoveSubjectIDs(ids ...int) {
+	if m.removedsubjects == nil {
+		m.removedsubjects = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.subjects, ids[i])
+		m.removedsubjects[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedSubjects returns the removed IDs of the "subjects" edge to the Subject entity.
+func (m *StatementMutation) RemovedSubjectsIDs() (ids []int) {
+	for id := range m.removedsubjects {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// SubjectsIDs returns the "subjects" edge IDs in the mutation.
+func (m *StatementMutation) SubjectsIDs() (ids []int) {
+	for id := range m.subjects {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetSubjects resets all changes to the "subjects" edge.
+func (m *StatementMutation) ResetSubjects() {
+	m.subjects = nil
+	m.clearedsubjects = false
+	m.removedsubjects = nil
+}
+
+// Where appends a list predicates to the StatementMutation builder.
+func (m *StatementMutation) Where(ps ...predicate.Statement) {
 	m.predicates = append(m.predicates, ps...)
 }
 
-// WhereP appends storage-level predicates to the StatementIndexMutation builder. Using this method,
+// WhereP appends storage-level predicates to the StatementMutation builder. Using this method,
 // users can use type-assertion to append predicates that do not depend on any generated package.
-func (m *StatementIndexMutation) WhereP(ps ...func(*sql.Selector)) {
-	p := make([]predicate.StatementIndex, len(ps))
+func (m *StatementMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.Statement, len(ps))
 	for i := range ps {
 		p[i] = ps[i]
 	}
@@ -301,36 +1349,30 @@ func (m *StatementIndexMutation) WhereP(ps ...func(*sql.Selector)) {
 }
 
 // Op returns the operation name.
-func (m *StatementIndexMutation) Op() Op {
+func (m *StatementMutation) Op() Op {
 	return m.op
 }
 
 // SetOp allows setting the mutation operation.
-func (m *StatementIndexMutation) SetOp(op Op) {
+func (m *StatementMutation) SetOp(op Op) {
 	m.op = op
 }
 
-// Type returns the node type of this mutation (StatementIndex).
-func (m *StatementIndexMutation) Type() string {
+// Type returns the node type of this mutation (Statement).
+func (m *StatementMutation) Type() string {
 	return m.typ
 }
 
 // Fields returns all fields that were changed during this mutation. Note that in
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
-func (m *StatementIndexMutation) Fields() []string {
-	fields := make([]string, 0, 4)
-	if m.object != nil {
-		fields = append(fields, statementindex.FieldObject)
-	}
-	if m.predicate != nil {
-		fields = append(fields, statementindex.FieldPredicate)
-	}
-	if m.subject != nil {
-		fields = append(fields, statementindex.FieldSubject)
+func (m *StatementMutation) Fields() []string {
+	fields := make([]string, 0, 2)
+	if m.namespace != nil {
+		fields = append(fields, statement.FieldNamespace)
 	}
 	if m.statement != nil {
-		fields = append(fields, statementindex.FieldStatement)
+		fields = append(fields, statement.FieldStatement)
 	}
 	return fields
 }
@@ -338,15 +1380,11 @@ func (m *StatementIndexMutation) Fields() []string {
 // Field returns the value of a field with the given name. The second boolean
 // return value indicates that this field was not set, or was not defined in the
 // schema.
-func (m *StatementIndexMutation) Field(name string) (ent.Value, bool) {
+func (m *StatementMutation) Field(name string) (ent.Value, bool) {
 	switch name {
-	case statementindex.FieldObject:
-		return m.Object()
-	case statementindex.FieldPredicate:
-		return m.Predicate()
-	case statementindex.FieldSubject:
-		return m.Subject()
-	case statementindex.FieldStatement:
+	case statement.FieldNamespace:
+		return m.Namespace()
+	case statement.FieldStatement:
 		return m.Statement()
 	}
 	return nil, false
@@ -355,162 +1393,699 @@ func (m *StatementIndexMutation) Field(name string) (ent.Value, bool) {
 // OldField returns the old value of the field from the database. An error is
 // returned if the mutation operation is not UpdateOne, or the query to the
 // database failed.
-func (m *StatementIndexMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+func (m *StatementMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
 	switch name {
-	case statementindex.FieldObject:
-		return m.OldObject(ctx)
-	case statementindex.FieldPredicate:
-		return m.OldPredicate(ctx)
-	case statementindex.FieldSubject:
-		return m.OldSubject(ctx)
-	case statementindex.FieldStatement:
+	case statement.FieldNamespace:
+		return m.OldNamespace(ctx)
+	case statement.FieldStatement:
 		return m.OldStatement(ctx)
 	}
-	return nil, fmt.Errorf("unknown StatementIndex field %s", name)
+	return nil, fmt.Errorf("unknown Statement field %s", name)
 }
 
 // SetField sets the value of a field with the given name. It returns an error if
 // the field is not defined in the schema, or if the type mismatched the field
 // type.
-func (m *StatementIndexMutation) SetField(name string, value ent.Value) error {
+func (m *StatementMutation) SetField(name string, value ent.Value) error {
 	switch name {
-	case statementindex.FieldObject:
-		v, ok := value.(schema.Object)
+	case statement.FieldNamespace:
+		v, ok := value.(string)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
-		m.SetObject(v)
+		m.SetNamespace(v)
 		return nil
-	case statementindex.FieldPredicate:
-		v, ok := value.(schema.Predicate)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetPredicate(v)
-		return nil
-	case statementindex.FieldSubject:
-		v, ok := value.(schema.Subject)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetSubject(v)
-		return nil
-	case statementindex.FieldStatement:
-		v, ok := value.(schema.Location)
+	case statement.FieldStatement:
+		v, ok := value.(map[string]interface{})
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetStatement(v)
 		return nil
 	}
-	return fmt.Errorf("unknown StatementIndex field %s", name)
+	return fmt.Errorf("unknown Statement field %s", name)
 }
 
 // AddedFields returns all numeric fields that were incremented/decremented during
 // this mutation.
-func (m *StatementIndexMutation) AddedFields() []string {
+func (m *StatementMutation) AddedFields() []string {
 	return nil
 }
 
 // AddedField returns the numeric value that was incremented/decremented on a field
 // with the given name. The second boolean return value indicates that this field
 // was not set, or was not defined in the schema.
-func (m *StatementIndexMutation) AddedField(name string) (ent.Value, bool) {
+func (m *StatementMutation) AddedField(name string) (ent.Value, bool) {
 	return nil, false
 }
 
 // AddField adds the value to the field with the given name. It returns an error if
 // the field is not defined in the schema, or if the type mismatched the field
 // type.
-func (m *StatementIndexMutation) AddField(name string, value ent.Value) error {
+func (m *StatementMutation) AddField(name string, value ent.Value) error {
 	switch name {
 	}
-	return fmt.Errorf("unknown StatementIndex numeric field %s", name)
+	return fmt.Errorf("unknown Statement numeric field %s", name)
 }
 
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
-func (m *StatementIndexMutation) ClearedFields() []string {
+func (m *StatementMutation) ClearedFields() []string {
 	return nil
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
 // cleared in this mutation.
-func (m *StatementIndexMutation) FieldCleared(name string) bool {
+func (m *StatementMutation) FieldCleared(name string) bool {
 	_, ok := m.clearedFields[name]
 	return ok
 }
 
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
-func (m *StatementIndexMutation) ClearField(name string) error {
-	return fmt.Errorf("unknown StatementIndex nullable field %s", name)
+func (m *StatementMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown Statement nullable field %s", name)
 }
 
 // ResetField resets all changes in the mutation for the field with the given name.
 // It returns an error if the field is not defined in the schema.
-func (m *StatementIndexMutation) ResetField(name string) error {
+func (m *StatementMutation) ResetField(name string) error {
 	switch name {
-	case statementindex.FieldObject:
-		m.ResetObject()
+	case statement.FieldNamespace:
+		m.ResetNamespace()
 		return nil
-	case statementindex.FieldPredicate:
-		m.ResetPredicate()
-		return nil
-	case statementindex.FieldSubject:
-		m.ResetSubject()
-		return nil
-	case statementindex.FieldStatement:
+	case statement.FieldStatement:
 		m.ResetStatement()
 		return nil
 	}
-	return fmt.Errorf("unknown StatementIndex field %s", name)
+	return fmt.Errorf("unknown Statement field %s", name)
 }
 
 // AddedEdges returns all edge names that were set/added in this mutation.
-func (m *StatementIndexMutation) AddedEdges() []string {
-	edges := make([]string, 0, 0)
+func (m *StatementMutation) AddedEdges() []string {
+	edges := make([]string, 0, 3)
+	if m.objects != nil {
+		edges = append(edges, statement.EdgeObjects)
+	}
+	if m._predicates != nil {
+		edges = append(edges, statement.EdgePredicates)
+	}
+	if m.subjects != nil {
+		edges = append(edges, statement.EdgeSubjects)
+	}
 	return edges
 }
 
 // AddedIDs returns all IDs (to other nodes) that were added for the given edge
 // name in this mutation.
-func (m *StatementIndexMutation) AddedIDs(name string) []ent.Value {
+func (m *StatementMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case statement.EdgeObjects:
+		ids := make([]ent.Value, 0, len(m.objects))
+		for id := range m.objects {
+			ids = append(ids, id)
+		}
+		return ids
+	case statement.EdgePredicates:
+		ids := make([]ent.Value, 0, len(m._predicates))
+		for id := range m._predicates {
+			ids = append(ids, id)
+		}
+		return ids
+	case statement.EdgeSubjects:
+		ids := make([]ent.Value, 0, len(m.subjects))
+		for id := range m.subjects {
+			ids = append(ids, id)
+		}
+		return ids
+	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
-func (m *StatementIndexMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 0)
+func (m *StatementMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 3)
+	if m.removedobjects != nil {
+		edges = append(edges, statement.EdgeObjects)
+	}
+	if m.removed_predicates != nil {
+		edges = append(edges, statement.EdgePredicates)
+	}
+	if m.removedsubjects != nil {
+		edges = append(edges, statement.EdgeSubjects)
+	}
 	return edges
 }
 
 // RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
 // the given name in this mutation.
-func (m *StatementIndexMutation) RemovedIDs(name string) []ent.Value {
+func (m *StatementMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case statement.EdgeObjects:
+		ids := make([]ent.Value, 0, len(m.removedobjects))
+		for id := range m.removedobjects {
+			ids = append(ids, id)
+		}
+		return ids
+	case statement.EdgePredicates:
+		ids := make([]ent.Value, 0, len(m.removed_predicates))
+		for id := range m.removed_predicates {
+			ids = append(ids, id)
+		}
+		return ids
+	case statement.EdgeSubjects:
+		ids := make([]ent.Value, 0, len(m.removedsubjects))
+		for id := range m.removedsubjects {
+			ids = append(ids, id)
+		}
+		return ids
+	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
-func (m *StatementIndexMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 0)
+func (m *StatementMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 3)
+	if m.clearedobjects {
+		edges = append(edges, statement.EdgeObjects)
+	}
+	if m.cleared_predicates {
+		edges = append(edges, statement.EdgePredicates)
+	}
+	if m.clearedsubjects {
+		edges = append(edges, statement.EdgeSubjects)
+	}
 	return edges
 }
 
 // EdgeCleared returns a boolean which indicates if the edge with the given name
 // was cleared in this mutation.
-func (m *StatementIndexMutation) EdgeCleared(name string) bool {
+func (m *StatementMutation) EdgeCleared(name string) bool {
+	switch name {
+	case statement.EdgeObjects:
+		return m.clearedobjects
+	case statement.EdgePredicates:
+		return m.cleared_predicates
+	case statement.EdgeSubjects:
+		return m.clearedsubjects
+	}
 	return false
 }
 
 // ClearEdge clears the value of the edge with the given name. It returns an error
 // if that edge is not defined in the schema.
-func (m *StatementIndexMutation) ClearEdge(name string) error {
-	return fmt.Errorf("unknown StatementIndex unique edge %s", name)
+func (m *StatementMutation) ClearEdge(name string) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown Statement unique edge %s", name)
 }
 
 // ResetEdge resets all changes to the edge with the given name in this mutation.
 // It returns an error if the edge is not defined in the schema.
-func (m *StatementIndexMutation) ResetEdge(name string) error {
-	return fmt.Errorf("unknown StatementIndex edge %s", name)
+func (m *StatementMutation) ResetEdge(name string) error {
+	switch name {
+	case statement.EdgeObjects:
+		m.ResetObjects()
+		return nil
+	case statement.EdgePredicates:
+		m.ResetPredicates()
+		return nil
+	case statement.EdgeSubjects:
+		m.ResetSubjects()
+		return nil
+	}
+	return fmt.Errorf("unknown Statement edge %s", name)
+}
+
+// SubjectMutation represents an operation that mutates the Subject nodes in the graph.
+type SubjectMutation struct {
+	config
+	op               Op
+	typ              string
+	id               *int
+	subjectType      *string
+	subject          *map[string]interface{}
+	clearedFields    map[string]struct{}
+	statement        map[int]struct{}
+	removedstatement map[int]struct{}
+	clearedstatement bool
+	done             bool
+	oldValue         func(context.Context) (*Subject, error)
+	predicates       []predicate.Subject
+}
+
+var _ ent.Mutation = (*SubjectMutation)(nil)
+
+// subjectOption allows management of the mutation configuration using functional options.
+type subjectOption func(*SubjectMutation)
+
+// newSubjectMutation creates new mutation for the Subject entity.
+func newSubjectMutation(c config, op Op, opts ...subjectOption) *SubjectMutation {
+	m := &SubjectMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeSubject,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withSubjectID sets the ID field of the mutation.
+func withSubjectID(id int) subjectOption {
+	return func(m *SubjectMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *Subject
+		)
+		m.oldValue = func(ctx context.Context) (*Subject, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().Subject.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withSubject sets the old Subject of the mutation.
+func withSubject(node *Subject) subjectOption {
+	return func(m *SubjectMutation) {
+		m.oldValue = func(context.Context) (*Subject, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m SubjectMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m SubjectMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *SubjectMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *SubjectMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().Subject.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetSubjectType sets the "subjectType" field.
+func (m *SubjectMutation) SetSubjectType(s string) {
+	m.subjectType = &s
+}
+
+// SubjectType returns the value of the "subjectType" field in the mutation.
+func (m *SubjectMutation) SubjectType() (r string, exists bool) {
+	v := m.subjectType
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSubjectType returns the old "subjectType" field's value of the Subject entity.
+// If the Subject object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubjectMutation) OldSubjectType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSubjectType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSubjectType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSubjectType: %w", err)
+	}
+	return oldValue.SubjectType, nil
+}
+
+// ResetSubjectType resets all changes to the "subjectType" field.
+func (m *SubjectMutation) ResetSubjectType() {
+	m.subjectType = nil
+}
+
+// SetSubject sets the "subject" field.
+func (m *SubjectMutation) SetSubject(value map[string]interface{}) {
+	m.subject = &value
+}
+
+// Subject returns the value of the "subject" field in the mutation.
+func (m *SubjectMutation) Subject() (r map[string]interface{}, exists bool) {
+	v := m.subject
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSubject returns the old "subject" field's value of the Subject entity.
+// If the Subject object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubjectMutation) OldSubject(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSubject is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSubject requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSubject: %w", err)
+	}
+	return oldValue.Subject, nil
+}
+
+// ResetSubject resets all changes to the "subject" field.
+func (m *SubjectMutation) ResetSubject() {
+	m.subject = nil
+}
+
+// AddStatementIDs adds the "statement" edge to the Statement entity by ids.
+func (m *SubjectMutation) AddStatementIDs(ids ...int) {
+	if m.statement == nil {
+		m.statement = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.statement[ids[i]] = struct{}{}
+	}
+}
+
+// ClearStatement clears the "statement" edge to the Statement entity.
+func (m *SubjectMutation) ClearStatement() {
+	m.clearedstatement = true
+}
+
+// StatementCleared reports if the "statement" edge to the Statement entity was cleared.
+func (m *SubjectMutation) StatementCleared() bool {
+	return m.clearedstatement
+}
+
+// RemoveStatementIDs removes the "statement" edge to the Statement entity by IDs.
+func (m *SubjectMutation) RemoveStatementIDs(ids ...int) {
+	if m.removedstatement == nil {
+		m.removedstatement = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.statement, ids[i])
+		m.removedstatement[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedStatement returns the removed IDs of the "statement" edge to the Statement entity.
+func (m *SubjectMutation) RemovedStatementIDs() (ids []int) {
+	for id := range m.removedstatement {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// StatementIDs returns the "statement" edge IDs in the mutation.
+func (m *SubjectMutation) StatementIDs() (ids []int) {
+	for id := range m.statement {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetStatement resets all changes to the "statement" edge.
+func (m *SubjectMutation) ResetStatement() {
+	m.statement = nil
+	m.clearedstatement = false
+	m.removedstatement = nil
+}
+
+// Where appends a list predicates to the SubjectMutation builder.
+func (m *SubjectMutation) Where(ps ...predicate.Subject) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the SubjectMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *SubjectMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.Subject, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *SubjectMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *SubjectMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (Subject).
+func (m *SubjectMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *SubjectMutation) Fields() []string {
+	fields := make([]string, 0, 2)
+	if m.subjectType != nil {
+		fields = append(fields, subject.FieldSubjectType)
+	}
+	if m.subject != nil {
+		fields = append(fields, subject.FieldSubject)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *SubjectMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case subject.FieldSubjectType:
+		return m.SubjectType()
+	case subject.FieldSubject:
+		return m.Subject()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *SubjectMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case subject.FieldSubjectType:
+		return m.OldSubjectType(ctx)
+	case subject.FieldSubject:
+		return m.OldSubject(ctx)
+	}
+	return nil, fmt.Errorf("unknown Subject field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *SubjectMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case subject.FieldSubjectType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSubjectType(v)
+		return nil
+	case subject.FieldSubject:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSubject(v)
+		return nil
+	}
+	return fmt.Errorf("unknown Subject field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *SubjectMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *SubjectMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *SubjectMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown Subject numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *SubjectMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *SubjectMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *SubjectMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown Subject nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *SubjectMutation) ResetField(name string) error {
+	switch name {
+	case subject.FieldSubjectType:
+		m.ResetSubjectType()
+		return nil
+	case subject.FieldSubject:
+		m.ResetSubject()
+		return nil
+	}
+	return fmt.Errorf("unknown Subject field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *SubjectMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.statement != nil {
+		edges = append(edges, subject.EdgeStatement)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *SubjectMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case subject.EdgeStatement:
+		ids := make([]ent.Value, 0, len(m.statement))
+		for id := range m.statement {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *SubjectMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.removedstatement != nil {
+		edges = append(edges, subject.EdgeStatement)
+	}
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *SubjectMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case subject.EdgeStatement:
+		ids := make([]ent.Value, 0, len(m.removedstatement))
+		for id := range m.removedstatement {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *SubjectMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearedstatement {
+		edges = append(edges, subject.EdgeStatement)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *SubjectMutation) EdgeCleared(name string) bool {
+	switch name {
+	case subject.EdgeStatement:
+		return m.clearedstatement
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *SubjectMutation) ClearEdge(name string) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown Subject unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *SubjectMutation) ResetEdge(name string) error {
+	switch name {
+	case subject.EdgeStatement:
+		m.ResetStatement()
+		return nil
+	}
+	return fmt.Errorf("unknown Subject edge %s", name)
 }

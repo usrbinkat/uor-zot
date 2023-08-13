@@ -6,5 +6,14 @@ import (
 	"entgo.io/ent/dialect/sql"
 )
 
-// StatementIndex is the predicate function for statementindex builders.
-type StatementIndex func(*sql.Selector)
+// Object is the predicate function for object builders.
+type Object func(*sql.Selector)
+
+// Spredicate is the predicate function for spredicate builders.
+type Spredicate func(*sql.Selector)
+
+// Statement is the predicate function for statement builders.
+type Statement func(*sql.Selector)
+
+// Subject is the predicate function for subject builders.
+type Subject func(*sql.Selector)

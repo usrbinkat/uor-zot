@@ -2,10 +2,6 @@
 
 package ent
 
-import (
-	//"zotregistry.io/zot/ent/schema"
-)
-
 // The init function reads all schema descriptors with runtime code
 // (default values, validators, hooks and policies) and stitches it
 // to their package variables.

@@ -1,0 +1,130 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type": "object",
+    "properties": {
+      "Actors": {
+        "type": "array",
+        "items": [
+          {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "age": {
+                "type": "integer"
+              },
+              "Born At": {
+                "type": "string"
+              },
+              "Birthdate": {
+                "type": "string"
+              },
+              "photo": {
+                "type": "string"
+              },
+              "wife": {
+                "type": "null"
+              },
+              "weight": {
+                "type": "number"
+              },
+              "hasChildren": {
+                "type": "boolean"
+              },
+              "hasGreyHair": {
+                "type": "boolean"
+              },
+              "children": {
+                "type": "array",
+                "items": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "string"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "name",
+              "age",
+              "Born At",
+              "Birthdate",
+              "photo",
+              "wife",
+              "weight",
+              "hasChildren",
+              "hasGreyHair",
+              "children"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "age": {
+                "type": "integer"
+              },
+              "Born At": {
+                "type": "string"
+              },
+              "Birthdate": {
+                "type": "string"
+              },
+              "photo": {
+                "type": "string"
+              },
+              "wife": {
+                "type": "string"
+              },
+              "weight": {
+                "type": "number"
+              },
+              "hasChildren": {
+                "type": "boolean"
+              },
+              "hasGreyHair": {
+                "type": "boolean"
+              },
+              "children": {
+                "type": "array",
+                "items": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "string"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "name",
+              "age",
+              "Born At",
+              "Birthdate",
+              "photo",
+              "wife",
+              "weight",
+              "hasChildren",
+              "hasGreyHair",
+              "children"
+            ]
+          }
+        ]
+      }
+    },
+    "required": [
+      "Actors"
+    ]
+  }

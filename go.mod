@@ -3,7 +3,7 @@ module zotregistry.io/zot
 go 1.20
 
 require (
-	github.com/99designs/gqlgen v0.17.35
+	github.com/99designs/gqlgen v0.17.36
 	github.com/Masterminds/semver v1.5.0
 	github.com/apex/log v1.9.0
 	github.com/aquasecurity/trivy-db v0.0.0-20230703082116-dc52e83376ce
@@ -40,7 +40,7 @@ require (
 	github.com/spf13/viper v1.16.0
 	github.com/stretchr/testify v1.8.4
 	github.com/swaggo/swag v1.16.1
-	github.com/vektah/gqlparser/v2 v2.5.7
+	github.com/vektah/gqlparser/v2 v2.5.8
 	go.etcd.io/bbolt v1.3.7
 	golang.org/x/crypto v0.11.0
 	gopkg.in/resty.v1 v1.12.0
@@ -48,6 +48,7 @@ require (
 )
 
 require (
+	entgo.io/contrib v0.4.6-0.20230725054517-9e1dadfef7fa
 	github.com/aquasecurity/trivy v0.43.1
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.20.1
 	github.com/containers/image/v5 v5.25.0
@@ -70,7 +71,7 @@ require (
 
 require (
 	github.com/google/go-github/v50 v50.2.0 // indirect
-	golang.org/x/sync v0.3.0 // indirect
+	golang.org/x/sync v0.3.0
 	golang.org/x/sys v0.10.0 // indirect
 	golang.org/x/text v0.11.0 // indirect
 )
@@ -112,7 +113,7 @@ require (
 	github.com/containerd/typeurl/v2 v2.1.0 // indirect
 	github.com/digitorus/pkcs7 v0.0.0-20221212123742-001c36b64ec3 // indirect
 	github.com/digitorus/timestamp v0.0.0-20221019182153-ef3b63b79b31 // indirect
-	github.com/dlclark/regexp2 v1.4.0 // indirect
+	github.com/dlclark/regexp2 v1.7.0 // indirect
 	github.com/docker/go-events v0.0.0-20190806004212-e31b211e4f1c // indirect
 	github.com/emicklei/go-restful/v3 v3.10.1 // indirect
 	github.com/evanphx/json-patch v5.6.0+incompatible // indirect
@@ -178,6 +179,8 @@ require (
 	github.com/tetratelabs/wazero v1.2.1 // indirect
 	github.com/urfave/cli/v2 v2.25.5 // indirect
 	github.com/vbauerster/mpb/v8 v8.3.0 // indirect
+	github.com/vmihailenco/msgpack/v5 v5.3.5 // indirect
+	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 	github.com/xeipuuv/gojsonschema v1.2.0 // indirect
 	github.com/xlab/treeprint v1.1.0 // indirect
 	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
@@ -352,7 +355,7 @@ require (
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-getter v1.7.1 // indirect
-	github.com/hashicorp/go-multierror v1.1.1 // indirect
+	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/go-retryablehttp v0.7.4 // indirect
 	github.com/hashicorp/go-safetemp v1.0.0 // indirect
 	github.com/hashicorp/go-uuid v1.0.3 // indirect

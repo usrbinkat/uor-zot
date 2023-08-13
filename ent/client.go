@@ -13,7 +13,13 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
-	"zotregistry.io/zot/ent/statementindex"
+	"entgo.io/ent/dialect/sql/sqlgraph"
+	"zotregistry.io/zot/ent/object"
+	"zotregistry.io/zot/ent/spredicate"
+	"zotregistry.io/zot/ent/statement"
+	"zotregistry.io/zot/ent/subject"
+
+	stdsql "database/sql"
 )
 
 // Client is the client that holds all ent builders.
@@ -21,8 +27,16 @@ type Client struct {
 	config
 	// Schema is the client for creating, migrating and dropping schema.
 	Schema *migrate.Schema
-	// StatementIndex is the client for interacting with the StatementIndex builders.
-	StatementIndex *StatementIndexClient
+	// Object is the client for interacting with the Object builders.
+	Object *ObjectClient
+	// Spredicate is the client for interacting with the Spredicate builders.
+	Spredicate *SpredicateClient
+	// Statement is the client for interacting with the Statement builders.
+	Statement *StatementClient
+	// Subject is the client for interacting with the Subject builders.
+	Subject *SubjectClient
+	// additional fields for node api
+	tables tables
 }
 
 // NewClient creates a new client configured with the given options.
@@ -36,7 +50,10 @@ func NewClient(opts ...Option) *Client {
 
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
-	c.StatementIndex = NewStatementIndexClient(c.config)
+	c.Object = NewObjectClient(c.config)
+	c.Spredicate = NewSpredicateClient(c.config)
+	c.Statement = NewStatementClient(c.config)
+	c.Subject = NewSubjectClient(c.config)
 }
 
 type (
@@ -117,9 +134,12 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	cfg := c.config
 	cfg.driver = tx
 	return &Tx{
-		ctx:            ctx,
-		config:         cfg,
-		StatementIndex: NewStatementIndexClient(cfg),
+		ctx:        ctx,
+		config:     cfg,
+		Object:     NewObjectClient(cfg),
+		Spredicate: NewSpredicateClient(cfg),
+		Statement:  NewStatementClient(cfg),
+		Subject:    NewSubjectClient(cfg),
 	}, nil
 }
 
@@ -137,16 +157,19 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	cfg := c.config
 	cfg.driver = &txDriver{tx: tx, drv: c.driver}
 	return &Tx{
-		ctx:            ctx,
-		config:         cfg,
-		StatementIndex: NewStatementIndexClient(cfg),
+		ctx:        ctx,
+		config:     cfg,
+		Object:     NewObjectClient(cfg),
+		Spredicate: NewSpredicateClient(cfg),
+		Statement:  NewStatementClient(cfg),
+		Subject:    NewSubjectClient(cfg),
 	}, nil
 }
 
 // Debug returns a new debug-client. It's used to get verbose logging on specific operations.
 //
 //	client.Debug().
-//		StatementIndex.
+//		Object.
 //		Query().
 //		Count(ctx)
 func (c *Client) Debug() *Client {
@@ -168,111 +191,123 @@ func (c *Client) Close() error {
 // Use adds the mutation hooks to all the entity clients.
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
-	c.StatementIndex.Use(hooks...)
+	c.Object.Use(hooks...)
+	c.Spredicate.Use(hooks...)
+	c.Statement.Use(hooks...)
+	c.Subject.Use(hooks...)
 }
 
 // Intercept adds the query interceptors to all the entity clients.
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
-	c.StatementIndex.Intercept(interceptors...)
+	c.Object.Intercept(interceptors...)
+	c.Spredicate.Intercept(interceptors...)
+	c.Statement.Intercept(interceptors...)
+	c.Subject.Intercept(interceptors...)
 }
 
 // Mutate implements the ent.Mutator interface.
 func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 	switch m := m.(type) {
-	case *StatementIndexMutation:
-		return c.StatementIndex.mutate(ctx, m)
+	case *ObjectMutation:
+		return c.Object.mutate(ctx, m)
+	case *SpredicateMutation:
+		return c.Spredicate.mutate(ctx, m)
+	case *StatementMutation:
+		return c.Statement.mutate(ctx, m)
+	case *SubjectMutation:
+		return c.Subject.mutate(ctx, m)
 	default:
 		return nil, fmt.Errorf("ent: unknown mutation type %T", m)
 	}
 }
 
-// StatementIndexClient is a client for the StatementIndex schema.
-type StatementIndexClient struct {
+// ObjectClient is a client for the Object schema.
+type ObjectClient struct {
 	config
 }
 
-// NewStatementIndexClient returns a client for the StatementIndex from the given config.
-func NewStatementIndexClient(c config) *StatementIndexClient {
-	return &StatementIndexClient{config: c}
+// NewObjectClient returns a client for the Object from the given config.
+func NewObjectClient(c config) *ObjectClient {
+	return &ObjectClient{config: c}
 }
 
 // Use adds a list of mutation hooks to the hooks stack.
-// A call to `Use(f, g, h)` equals to `statementindex.Hooks(f(g(h())))`.
-func (c *StatementIndexClient) Use(hooks ...Hook) {
-	c.hooks.StatementIndex = append(c.hooks.StatementIndex, hooks...)
+// A call to `Use(f, g, h)` equals to `object.Hooks(f(g(h())))`.
+func (c *ObjectClient) Use(hooks ...Hook) {
+	c.hooks.Object = append(c.hooks.Object, hooks...)
 }
 
 // Intercept adds a list of query interceptors to the interceptors stack.
-// A call to `Intercept(f, g, h)` equals to `statementindex.Intercept(f(g(h())))`.
-func (c *StatementIndexClient) Intercept(interceptors ...Interceptor) {
-	c.inters.StatementIndex = append(c.inters.StatementIndex, interceptors...)
+// A call to `Intercept(f, g, h)` equals to `object.Intercept(f(g(h())))`.
+func (c *ObjectClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Object = append(c.inters.Object, interceptors...)
 }
 
-// Create returns a builder for creating a StatementIndex entity.
-func (c *StatementIndexClient) Create() *StatementIndexCreate {
-	mutation := newStatementIndexMutation(c.config, OpCreate)
-	return &StatementIndexCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+// Create returns a builder for creating a Object entity.
+func (c *ObjectClient) Create() *ObjectCreate {
+	mutation := newObjectMutation(c.config, OpCreate)
+	return &ObjectCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
-// CreateBulk returns a builder for creating a bulk of StatementIndex entities.
-func (c *StatementIndexClient) CreateBulk(builders ...*StatementIndexCreate) *StatementIndexCreateBulk {
-	return &StatementIndexCreateBulk{config: c.config, builders: builders}
+// CreateBulk returns a builder for creating a bulk of Object entities.
+func (c *ObjectClient) CreateBulk(builders ...*ObjectCreate) *ObjectCreateBulk {
+	return &ObjectCreateBulk{config: c.config, builders: builders}
 }
 
-// Update returns an update builder for StatementIndex.
-func (c *StatementIndexClient) Update() *StatementIndexUpdate {
-	mutation := newStatementIndexMutation(c.config, OpUpdate)
-	return &StatementIndexUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+// Update returns an update builder for Object.
+func (c *ObjectClient) Update() *ObjectUpdate {
+	mutation := newObjectMutation(c.config, OpUpdate)
+	return &ObjectUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
 // UpdateOne returns an update builder for the given entity.
-func (c *StatementIndexClient) UpdateOne(si *StatementIndex) *StatementIndexUpdateOne {
-	mutation := newStatementIndexMutation(c.config, OpUpdateOne, withStatementIndex(si))
-	return &StatementIndexUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+func (c *ObjectClient) UpdateOne(o *Object) *ObjectUpdateOne {
+	mutation := newObjectMutation(c.config, OpUpdateOne, withObject(o))
+	return &ObjectUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
 // UpdateOneID returns an update builder for the given id.
-func (c *StatementIndexClient) UpdateOneID(id int) *StatementIndexUpdateOne {
-	mutation := newStatementIndexMutation(c.config, OpUpdateOne, withStatementIndexID(id))
-	return &StatementIndexUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+func (c *ObjectClient) UpdateOneID(id int) *ObjectUpdateOne {
+	mutation := newObjectMutation(c.config, OpUpdateOne, withObjectID(id))
+	return &ObjectUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
-// Delete returns a delete builder for StatementIndex.
-func (c *StatementIndexClient) Delete() *StatementIndexDelete {
-	mutation := newStatementIndexMutation(c.config, OpDelete)
-	return &StatementIndexDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+// Delete returns a delete builder for Object.
+func (c *ObjectClient) Delete() *ObjectDelete {
+	mutation := newObjectMutation(c.config, OpDelete)
+	return &ObjectDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
 // DeleteOne returns a builder for deleting the given entity.
-func (c *StatementIndexClient) DeleteOne(si *StatementIndex) *StatementIndexDeleteOne {
-	return c.DeleteOneID(si.ID)
+func (c *ObjectClient) DeleteOne(o *Object) *ObjectDeleteOne {
+	return c.DeleteOneID(o.ID)
 }
 
 // DeleteOneID returns a builder for deleting the given entity by its id.
-func (c *StatementIndexClient) DeleteOneID(id int) *StatementIndexDeleteOne {
-	builder := c.Delete().Where(statementindex.ID(id))
+func (c *ObjectClient) DeleteOneID(id int) *ObjectDeleteOne {
+	builder := c.Delete().Where(object.ID(id))
 	builder.mutation.id = &id
 	builder.mutation.op = OpDeleteOne
-	return &StatementIndexDeleteOne{builder}
+	return &ObjectDeleteOne{builder}
 }
 
-// Query returns a query builder for StatementIndex.
-func (c *StatementIndexClient) Query() *StatementIndexQuery {
-	return &StatementIndexQuery{
+// Query returns a query builder for Object.
+func (c *ObjectClient) Query() *ObjectQuery {
+	return &ObjectQuery{
 		config: c.config,
-		ctx:    &QueryContext{Type: TypeStatementIndex},
+		ctx:    &QueryContext{Type: TypeObject},
 		inters: c.Interceptors(),
 	}
 }
 
-// Get returns a StatementIndex entity by its id.
-func (c *StatementIndexClient) Get(ctx context.Context, id int) (*StatementIndex, error) {
-	return c.Query().Where(statementindex.ID(id)).Only(ctx)
+// Get returns a Object entity by its id.
+func (c *ObjectClient) Get(ctx context.Context, id int) (*Object, error) {
+	return c.Query().Where(object.ID(id)).Only(ctx)
 }
 
 // GetX is like Get, but panics if an error occurs.
-func (c *StatementIndexClient) GetX(ctx context.Context, id int) *StatementIndex {
+func (c *ObjectClient) GetX(ctx context.Context, id int) *Object {
 	obj, err := c.Get(ctx, id)
 	if err != nil {
 		panic(err)
@@ -280,37 +315,511 @@ func (c *StatementIndexClient) GetX(ctx context.Context, id int) *StatementIndex
 	return obj
 }
 
+// QueryStatement queries the statement edge of a Object.
+func (c *ObjectClient) QueryStatement(o *Object) *StatementQuery {
+	query := (&StatementClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := o.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(object.Table, object.FieldID, id),
+			sqlgraph.To(statement.Table, statement.FieldID),
+			sqlgraph.Edge(sqlgraph.M2M, true, object.StatementTable, object.StatementPrimaryKey...),
+		)
+		fromV = sqlgraph.Neighbors(o.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
-func (c *StatementIndexClient) Hooks() []Hook {
-	return c.hooks.StatementIndex
+func (c *ObjectClient) Hooks() []Hook {
+	return c.hooks.Object
 }
 
 // Interceptors returns the client interceptors.
-func (c *StatementIndexClient) Interceptors() []Interceptor {
-	return c.inters.StatementIndex
+func (c *ObjectClient) Interceptors() []Interceptor {
+	return c.inters.Object
 }
 
-func (c *StatementIndexClient) mutate(ctx context.Context, m *StatementIndexMutation) (Value, error) {
+func (c *ObjectClient) mutate(ctx context.Context, m *ObjectMutation) (Value, error) {
 	switch m.Op() {
 	case OpCreate:
-		return (&StatementIndexCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&ObjectCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
 	case OpUpdate:
-		return (&StatementIndexUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&ObjectUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
 	case OpUpdateOne:
-		return (&StatementIndexUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&ObjectUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
 	case OpDelete, OpDeleteOne:
-		return (&StatementIndexDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+		return (&ObjectDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
-		return nil, fmt.Errorf("ent: unknown StatementIndex mutation op: %q", m.Op())
+		return nil, fmt.Errorf("ent: unknown Object mutation op: %q", m.Op())
+	}
+}
+
+// SpredicateClient is a client for the Spredicate schema.
+type SpredicateClient struct {
+	config
+}
+
+// NewSpredicateClient returns a client for the Spredicate from the given config.
+func NewSpredicateClient(c config) *SpredicateClient {
+	return &SpredicateClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `spredicate.Hooks(f(g(h())))`.
+func (c *SpredicateClient) Use(hooks ...Hook) {
+	c.hooks.Spredicate = append(c.hooks.Spredicate, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `spredicate.Intercept(f(g(h())))`.
+func (c *SpredicateClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Spredicate = append(c.inters.Spredicate, interceptors...)
+}
+
+// Create returns a builder for creating a Spredicate entity.
+func (c *SpredicateClient) Create() *SpredicateCreate {
+	mutation := newSpredicateMutation(c.config, OpCreate)
+	return &SpredicateCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Spredicate entities.
+func (c *SpredicateClient) CreateBulk(builders ...*SpredicateCreate) *SpredicateCreateBulk {
+	return &SpredicateCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Spredicate.
+func (c *SpredicateClient) Update() *SpredicateUpdate {
+	mutation := newSpredicateMutation(c.config, OpUpdate)
+	return &SpredicateUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *SpredicateClient) UpdateOne(s *Spredicate) *SpredicateUpdateOne {
+	mutation := newSpredicateMutation(c.config, OpUpdateOne, withSpredicate(s))
+	return &SpredicateUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *SpredicateClient) UpdateOneID(id int) *SpredicateUpdateOne {
+	mutation := newSpredicateMutation(c.config, OpUpdateOne, withSpredicateID(id))
+	return &SpredicateUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Spredicate.
+func (c *SpredicateClient) Delete() *SpredicateDelete {
+	mutation := newSpredicateMutation(c.config, OpDelete)
+	return &SpredicateDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *SpredicateClient) DeleteOne(s *Spredicate) *SpredicateDeleteOne {
+	return c.DeleteOneID(s.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *SpredicateClient) DeleteOneID(id int) *SpredicateDeleteOne {
+	builder := c.Delete().Where(spredicate.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &SpredicateDeleteOne{builder}
+}
+
+// Query returns a query builder for Spredicate.
+func (c *SpredicateClient) Query() *SpredicateQuery {
+	return &SpredicateQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeSpredicate},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Spredicate entity by its id.
+func (c *SpredicateClient) Get(ctx context.Context, id int) (*Spredicate, error) {
+	return c.Query().Where(spredicate.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *SpredicateClient) GetX(ctx context.Context, id int) *Spredicate {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryStatement queries the statement edge of a Spredicate.
+func (c *SpredicateClient) QueryStatement(s *Spredicate) *StatementQuery {
+	query := (&StatementClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := s.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(spredicate.Table, spredicate.FieldID, id),
+			sqlgraph.To(statement.Table, statement.FieldID),
+			sqlgraph.Edge(sqlgraph.M2M, true, spredicate.StatementTable, spredicate.StatementPrimaryKey...),
+		)
+		fromV = sqlgraph.Neighbors(s.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *SpredicateClient) Hooks() []Hook {
+	return c.hooks.Spredicate
+}
+
+// Interceptors returns the client interceptors.
+func (c *SpredicateClient) Interceptors() []Interceptor {
+	return c.inters.Spredicate
+}
+
+func (c *SpredicateClient) mutate(ctx context.Context, m *SpredicateMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&SpredicateCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&SpredicateUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&SpredicateUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&SpredicateDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown Spredicate mutation op: %q", m.Op())
+	}
+}
+
+// StatementClient is a client for the Statement schema.
+type StatementClient struct {
+	config
+}
+
+// NewStatementClient returns a client for the Statement from the given config.
+func NewStatementClient(c config) *StatementClient {
+	return &StatementClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `statement.Hooks(f(g(h())))`.
+func (c *StatementClient) Use(hooks ...Hook) {
+	c.hooks.Statement = append(c.hooks.Statement, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `statement.Intercept(f(g(h())))`.
+func (c *StatementClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Statement = append(c.inters.Statement, interceptors...)
+}
+
+// Create returns a builder for creating a Statement entity.
+func (c *StatementClient) Create() *StatementCreate {
+	mutation := newStatementMutation(c.config, OpCreate)
+	return &StatementCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Statement entities.
+func (c *StatementClient) CreateBulk(builders ...*StatementCreate) *StatementCreateBulk {
+	return &StatementCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Statement.
+func (c *StatementClient) Update() *StatementUpdate {
+	mutation := newStatementMutation(c.config, OpUpdate)
+	return &StatementUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *StatementClient) UpdateOne(s *Statement) *StatementUpdateOne {
+	mutation := newStatementMutation(c.config, OpUpdateOne, withStatement(s))
+	return &StatementUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *StatementClient) UpdateOneID(id int) *StatementUpdateOne {
+	mutation := newStatementMutation(c.config, OpUpdateOne, withStatementID(id))
+	return &StatementUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Statement.
+func (c *StatementClient) Delete() *StatementDelete {
+	mutation := newStatementMutation(c.config, OpDelete)
+	return &StatementDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *StatementClient) DeleteOne(s *Statement) *StatementDeleteOne {
+	return c.DeleteOneID(s.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *StatementClient) DeleteOneID(id int) *StatementDeleteOne {
+	builder := c.Delete().Where(statement.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &StatementDeleteOne{builder}
+}
+
+// Query returns a query builder for Statement.
+func (c *StatementClient) Query() *StatementQuery {
+	return &StatementQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeStatement},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Statement entity by its id.
+func (c *StatementClient) Get(ctx context.Context, id int) (*Statement, error) {
+	return c.Query().Where(statement.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *StatementClient) GetX(ctx context.Context, id int) *Statement {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryObjects queries the objects edge of a Statement.
+func (c *StatementClient) QueryObjects(s *Statement) *ObjectQuery {
+	query := (&ObjectClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := s.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(statement.Table, statement.FieldID, id),
+			sqlgraph.To(object.Table, object.FieldID),
+			sqlgraph.Edge(sqlgraph.M2M, false, statement.ObjectsTable, statement.ObjectsPrimaryKey...),
+		)
+		fromV = sqlgraph.Neighbors(s.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryPredicates queries the predicates edge of a Statement.
+func (c *StatementClient) QueryPredicates(s *Statement) *SpredicateQuery {
+	query := (&SpredicateClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := s.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(statement.Table, statement.FieldID, id),
+			sqlgraph.To(spredicate.Table, spredicate.FieldID),
+			sqlgraph.Edge(sqlgraph.M2M, false, statement.PredicatesTable, statement.PredicatesPrimaryKey...),
+		)
+		fromV = sqlgraph.Neighbors(s.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QuerySubjects queries the subjects edge of a Statement.
+func (c *StatementClient) QuerySubjects(s *Statement) *SubjectQuery {
+	query := (&SubjectClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := s.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(statement.Table, statement.FieldID, id),
+			sqlgraph.To(subject.Table, subject.FieldID),
+			sqlgraph.Edge(sqlgraph.M2M, false, statement.SubjectsTable, statement.SubjectsPrimaryKey...),
+		)
+		fromV = sqlgraph.Neighbors(s.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *StatementClient) Hooks() []Hook {
+	return c.hooks.Statement
+}
+
+// Interceptors returns the client interceptors.
+func (c *StatementClient) Interceptors() []Interceptor {
+	return c.inters.Statement
+}
+
+func (c *StatementClient) mutate(ctx context.Context, m *StatementMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&StatementCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&StatementUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&StatementUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&StatementDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown Statement mutation op: %q", m.Op())
+	}
+}
+
+// SubjectClient is a client for the Subject schema.
+type SubjectClient struct {
+	config
+}
+
+// NewSubjectClient returns a client for the Subject from the given config.
+func NewSubjectClient(c config) *SubjectClient {
+	return &SubjectClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `subject.Hooks(f(g(h())))`.
+func (c *SubjectClient) Use(hooks ...Hook) {
+	c.hooks.Subject = append(c.hooks.Subject, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `subject.Intercept(f(g(h())))`.
+func (c *SubjectClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Subject = append(c.inters.Subject, interceptors...)
+}
+
+// Create returns a builder for creating a Subject entity.
+func (c *SubjectClient) Create() *SubjectCreate {
+	mutation := newSubjectMutation(c.config, OpCreate)
+	return &SubjectCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Subject entities.
+func (c *SubjectClient) CreateBulk(builders ...*SubjectCreate) *SubjectCreateBulk {
+	return &SubjectCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Subject.
+func (c *SubjectClient) Update() *SubjectUpdate {
+	mutation := newSubjectMutation(c.config, OpUpdate)
+	return &SubjectUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *SubjectClient) UpdateOne(s *Subject) *SubjectUpdateOne {
+	mutation := newSubjectMutation(c.config, OpUpdateOne, withSubject(s))
+	return &SubjectUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *SubjectClient) UpdateOneID(id int) *SubjectUpdateOne {
+	mutation := newSubjectMutation(c.config, OpUpdateOne, withSubjectID(id))
+	return &SubjectUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Subject.
+func (c *SubjectClient) Delete() *SubjectDelete {
+	mutation := newSubjectMutation(c.config, OpDelete)
+	return &SubjectDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *SubjectClient) DeleteOne(s *Subject) *SubjectDeleteOne {
+	return c.DeleteOneID(s.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *SubjectClient) DeleteOneID(id int) *SubjectDeleteOne {
+	builder := c.Delete().Where(subject.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &SubjectDeleteOne{builder}
+}
+
+// Query returns a query builder for Subject.
+func (c *SubjectClient) Query() *SubjectQuery {
+	return &SubjectQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeSubject},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Subject entity by its id.
+func (c *SubjectClient) Get(ctx context.Context, id int) (*Subject, error) {
+	return c.Query().Where(subject.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *SubjectClient) GetX(ctx context.Context, id int) *Subject {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryStatement queries the statement edge of a Subject.
+func (c *SubjectClient) QueryStatement(s *Subject) *StatementQuery {
+	query := (&StatementClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := s.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(subject.Table, subject.FieldID, id),
+			sqlgraph.To(statement.Table, statement.FieldID),
+			sqlgraph.Edge(sqlgraph.M2M, true, subject.StatementTable, subject.StatementPrimaryKey...),
+		)
+		fromV = sqlgraph.Neighbors(s.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *SubjectClient) Hooks() []Hook {
+	return c.hooks.Subject
+}
+
+// Interceptors returns the client interceptors.
+func (c *SubjectClient) Interceptors() []Interceptor {
+	return c.inters.Subject
+}
+
+func (c *SubjectClient) mutate(ctx context.Context, m *SubjectMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&SubjectCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&SubjectUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&SubjectUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&SubjectDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown Subject mutation op: %q", m.Op())
 	}
 }
 
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		StatementIndex []ent.Hook
+		Object, Spredicate, Statement, Subject []ent.Hook
 	}
 	inters struct {
-		StatementIndex []ent.Interceptor
+		Object, Spredicate, Statement, Subject []ent.Interceptor
 	}
 )
+
+// ExecContext allows calling the underlying ExecContext method of the driver if it is supported by it.
+// See, database/sql#DB.ExecContext for more information.
+func (c *config) ExecContext(ctx context.Context, query string, args ...any) (stdsql.Result, error) {
+	ex, ok := c.driver.(interface {
+		ExecContext(context.Context, string, ...any) (stdsql.Result, error)
+	})
+	if !ok {
+		return nil, fmt.Errorf("Driver.ExecContext is not supported")
+	}
+	return ex.ExecContext(ctx, query, args...)
+}
+
+// QueryContext allows calling the underlying QueryContext method of the driver if it is supported by it.
+// See, database/sql#DB.QueryContext for more information.
+func (c *config) QueryContext(ctx context.Context, query string, args ...any) (*stdsql.Rows, error) {
+	q, ok := c.driver.(interface {
+		QueryContext(context.Context, string, ...any) (*stdsql.Rows, error)
+	})
+	if !ok {
+		return nil, fmt.Errorf("Driver.QueryContext is not supported")
+	}
+	return q.QueryContext(ctx, query, args...)
+}

@@ -12,7 +12,10 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
-	"zotregistry.io/zot/ent/statementindex"
+	"zotregistry.io/zot/ent/object"
+	"zotregistry.io/zot/ent/spredicate"
+	"zotregistry.io/zot/ent/statement"
+	"zotregistry.io/zot/ent/subject"
 )
 
 // ent aliases to avoid import conflicts in user's code.
@@ -73,7 +76,10 @@ var (
 func checkColumn(table, column string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			statementindex.Table: statementindex.ValidColumn,
+			object.Table:     object.ValidColumn,
+			spredicate.Table: spredicate.ValidColumn,
+			statement.Table:  statement.ValidColumn,
+			subject.Table:    subject.ValidColumn,
 		})
 	})
 	return columnCheck(table, column)
