@@ -1,0 +1,8 @@
+extend input StatementWhereInput {
+  jsonPath: String
+  jsonValue: String
+}
+
+extend type Query {
+  statementsq(jsonPath: String, jsonValue: String): [Statement!]!
+}

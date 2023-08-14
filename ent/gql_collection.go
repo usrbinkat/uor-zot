@@ -91,6 +91,9 @@ func newObjectPaginateArgs(rv map[string]any) *objectPaginateArgs {
 	if v := rv[beforeField]; v != nil {
 		args.before = v.(*Cursor)
 	}
+	if v, ok := rv[whereField].(*ObjectWhereInput); ok {
+		args.opts = append(args.opts, WithObjectFilter(v.Filter))
+	}
 	return args
 }
 
@@ -171,6 +174,9 @@ func newSpredicatePaginateArgs(rv map[string]any) *spredicatePaginateArgs {
 	}
 	if v := rv[beforeField]; v != nil {
 		args.before = v.(*Cursor)
+	}
+	if v, ok := rv[whereField].(*SpredicateWhereInput); ok {
+		args.opts = append(args.opts, WithSpredicateFilter(v.Filter))
 	}
 	return args
 }
@@ -277,6 +283,9 @@ func newStatementPaginateArgs(rv map[string]any) *statementPaginateArgs {
 	if v := rv[beforeField]; v != nil {
 		args.before = v.(*Cursor)
 	}
+	if v, ok := rv[whereField].(*StatementWhereInput); ok {
+		args.opts = append(args.opts, WithStatementFilter(v.Filter))
+	}
 	return args
 }
 
@@ -357,6 +366,9 @@ func newSubjectPaginateArgs(rv map[string]any) *subjectPaginateArgs {
 	}
 	if v := rv[beforeField]; v != nil {
 		args.before = v.(*Cursor)
+	}
+	if v, ok := rv[whereField].(*SubjectWhereInput); ok {
+		args.opts = append(args.opts, WithSubjectFilter(v.Filter))
 	}
 	return args
 }

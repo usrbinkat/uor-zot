@@ -43,4 +43,10 @@ func (r *queryResolver) Subjects(ctx context.Context) ([]*ent.Subject, error) {
 // Query returns QueryResolver implementation.
 func (r *Resolver) Query() QueryResolver { return &queryResolver{r} }
 
+// StatementWhereInput returns StatementWhereInputResolver implementation.
+func (r *Resolver) StatementWhereInput() StatementWhereInputResolver {
+	return &statementWhereInputResolver{r}
+}
+
 type queryResolver struct{ *Resolver }
+type statementWhereInputResolver struct{ *Resolver }
