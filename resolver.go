@@ -70,9 +70,10 @@ func HasJSONValue(column, path, value string) *statementHasJSONValue {
 
 // This is where we implement the sql.Predicate interface
 func (s *statementHasJSONValue) Eval(builder *sql.Builder) {
-	jsonQuery := fmt.Sprintf(`json_extract(%s, "$.%s") = ?`, s.column, s.path)
+	jsonQuery := fmt.Sprintf(`json_extract(%s, "$.%s") = `, s.column, s.path)
 	builder.WriteString(jsonQuery)
 	builder.Args(s.value)
+	fmt.Printf("builder: %v\n", builder)
 }
 
 func (s *statementHasJSONValue) P() *sql.Predicate {
@@ -86,14 +87,38 @@ func (s *statementHasJSONValue) SQL() (string, []interface{}) {
 
 func StatementHasJSONValue(column, path, value string) predicate.Statement {
 	return func(selector *sql.Selector) {
-		// Construct the SQL expression for JSON extraction.
-		jsonQuery := fmt.Sprintf(`json_extract(%s, "$.%s") = ?`, column, path)
-		fmt.Printf("jsonquery: %s\n", jsonQuery)
-		predicate := sql.P(func(b *sql.Builder) {
-			b.WriteString(jsonQuery)
-			b.Args(value)
-		})
-		selector.Where(predicate)
+		// Create a custom predicate
+		customPredicate := HasJSONValue(column, path, value)
+		fmt.Printf("customPredicate: %v\n", customPredicate)
+		// Use the custom predicate directly
+		selector.Where(customPredicate.P())
 		fmt.Printf("selector: %v\n", selector)
+	}
+}
+
+func ObjectHasJSONValue(column, path, value string) predicate.Object {
+	return func(selector *sql.Selector) {
+		// Create a custom predicate
+		customPredicate := HasJSONValue(column, path, value)
+		// Use the custom predicate directly
+		selector.Where(customPredicate.P())
+	}
+}
+
+func SubjectHasJSONValue(column, path, value string) predicate.Subject {
+	return func(selector *sql.Selector) {
+		// Create a custom predicate
+		customPredicate := HasJSONValue(column, path, value)
+		// Use the custom predicate directly
+		selector.Where(customPredicate.P())
+	}
+}
+
+func PredicateHasJSONValue(column, path, value string) predicate.Spredicate {
+	return func(selector *sql.Selector) {
+		// Create a custom predicate
+		customPredicate := HasJSONValue(column, path, value)
+		// Use the custom predicate directly
+		selector.Where(customPredicate.P())
 	}
 }

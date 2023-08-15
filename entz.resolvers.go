@@ -11,8 +11,12 @@ import (
 	"zotregistry.io/zot/ent"
 )
 
+// Statementsq is the resolver for the statementsq field.
 func (r *queryResolver) Statementsq(ctx context.Context, jsonPath *string, jsonValue *string) ([]*ent.Statement, error) {
 	fmt.Println("statementsq called")
+	fmt.Printf("jsonPath: %s\n", *jsonPath)
+	fmt.Printf("jsonValue: %s\n", *jsonValue)
+
 	// Query all statements from the database
 	query := r.client.Statement.Query()
 
@@ -28,6 +32,75 @@ func (r *queryResolver) Statementsq(ctx context.Context, jsonPath *string, jsonV
 	}
 
 	return statements, nil
+}
+
+// Objectsq is the resolver for the objectsq field.
+func (r *queryResolver) Objectsq(ctx context.Context, jsonPath *string, jsonValue *string) ([]*ent.Object, error) {
+	fmt.Println("statementsq called")
+	fmt.Printf("jsonPath: %s\n", *jsonPath)
+	fmt.Printf("jsonValue: %s\n", *jsonValue)
+
+	// Query all statements from the database
+	query := r.client.Object.Query()
+
+	// Apply custom predicates if needed
+	if jsonPath != nil && jsonValue != nil {
+		predicate := ObjectHasJSONValue("object", *jsonPath, *jsonValue)
+		query.Where(predicate) // Use the custom predicate directly
+	}
+
+	objects, err := query.All(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return objects, nil
+}
+
+// Predicatesq is the resolver for the predicatesq field.
+func (r *queryResolver) Predicatesq(ctx context.Context, jsonPath *string, jsonValue *string) ([]*ent.Spredicate, error) {
+	fmt.Println("predicatesq called")
+	fmt.Printf("jsonPath: %s\n", *jsonPath)
+	fmt.Printf("jsonValue: %s\n", *jsonValue)
+
+	// Query all statements from the database
+	query := r.client.Spredicate.Query()
+
+	// Apply custom predicates if needed
+	if jsonPath != nil && jsonValue != nil {
+		predicate := PredicateHasJSONValue("predicate", *jsonPath, *jsonValue)
+		query.Where(predicate) // Use the custom predicate directly
+	}
+
+	spredicates, err := query.All(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return spredicates, nil
+}
+
+// Subjectsq is the resolver for the subjectsq field.
+func (r *queryResolver) Subjectsq(ctx context.Context, jsonPath *string, jsonValue *string) ([]*ent.Subject, error) {
+	fmt.Println("subjectsq called")
+	fmt.Printf("jsonPath: %s\n", *jsonPath)
+	fmt.Printf("jsonValue: %s\n", *jsonValue)
+
+	// Query all statements from the database
+	query := r.client.Subject.Query()
+
+	// Apply custom predicates if needed
+	if jsonPath != nil && jsonValue != nil {
+		predicate := SubjectHasJSONValue("subject", *jsonPath, *jsonValue)
+		query.Where(predicate) // Use the custom predicate directly
+	}
+
+	subjects, err := query.All(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return subjects, nil
 }
 
 // JSONPath is the resolver for the jsonPath field.

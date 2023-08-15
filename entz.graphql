@@ -5,4 +5,7 @@ extend input StatementWhereInput {
 
 extend type Query {
   statementsq(jsonPath: String, jsonValue: String): [Statement!]!
+  objectsq(jsonPath: String, jsonValue: String): [Object!]!
+  predicatesq(jsonPath: String, jsonValue: String): [Spredicate!]!
+  subjectsq(jsonPath: String, jsonValue: String): [Subject!]!
 }

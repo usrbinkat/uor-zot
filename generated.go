@@ -64,10 +64,13 @@ type ComplexityRoot struct {
 		Node        func(childComplexity int, id int) int
 		Nodes       func(childComplexity int, ids []int) int
 		Objects     func(childComplexity int) int
+		Objectsq    func(childComplexity int, jsonPath *string, jsonValue *string) int
+		Predicatesq func(childComplexity int, jsonPath *string, jsonValue *string) int
 		Spredicates func(childComplexity int) int
 		Statements  func(childComplexity int) int
 		Statementsq func(childComplexity int, jsonPath *string, jsonValue *string) int
 		Subjects    func(childComplexity int) int
+		Subjectsq   func(childComplexity int, jsonPath *string, jsonValue *string) int
 	}
 
 	Spredicate struct {
@@ -102,6 +105,9 @@ type QueryResolver interface {
 	Statements(ctx context.Context) ([]*ent.Statement, error)
 	Subjects(ctx context.Context) ([]*ent.Subject, error)
 	Statementsq(ctx context.Context, jsonPath *string, jsonValue *string) ([]*ent.Statement, error)
+	Objectsq(ctx context.Context, jsonPath *string, jsonValue *string) ([]*ent.Object, error)
+	Predicatesq(ctx context.Context, jsonPath *string, jsonValue *string) ([]*ent.Spredicate, error)
+	Subjectsq(ctx context.Context, jsonPath *string, jsonValue *string) ([]*ent.Subject, error)
 }
 
 type StatementWhereInputResolver interface {
@@ -211,6 +217,30 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Query.Objects(childComplexity), true
 
+	case "Query.objectsq":
+		if e.complexity.Query.Objectsq == nil {
+			break
+		}
+
+		args, err := ec.field_Query_objectsq_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.Objectsq(childComplexity, args["jsonPath"].(*string), args["jsonValue"].(*string)), true
+
+	case "Query.predicatesq":
+		if e.complexity.Query.Predicatesq == nil {
+			break
+		}
+
+		args, err := ec.field_Query_predicatesq_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.Predicatesq(childComplexity, args["jsonPath"].(*string), args["jsonValue"].(*string)), true
+
 	case "Query.spredicates":
 		if e.complexity.Query.Spredicates == nil {
 			break
@@ -243,6 +273,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Query.Subjects(childComplexity), true
+
+	case "Query.subjectsq":
+		if e.complexity.Query.Subjectsq == nil {
+			break
+		}
+
+		args, err := ec.field_Query_subjectsq_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.Subjectsq(childComplexity, args["jsonPath"].(*string), args["jsonValue"].(*string)), true
 
 	case "Spredicate.id":
 		if e.complexity.Spredicate.ID == nil {
@@ -505,7 +547,79 @@ func (ec *executionContext) field_Query_nodes_args(ctx context.Context, rawArgs 
 	return args, nil
 }
 
+func (ec *executionContext) field_Query_objectsq_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 *string
+	if tmp, ok := rawArgs["jsonPath"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("jsonPath"))
+		arg0, err = ec.unmarshalOString2ᚖstring(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["jsonPath"] = arg0
+	var arg1 *string
+	if tmp, ok := rawArgs["jsonValue"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("jsonValue"))
+		arg1, err = ec.unmarshalOString2ᚖstring(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["jsonValue"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_predicatesq_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 *string
+	if tmp, ok := rawArgs["jsonPath"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("jsonPath"))
+		arg0, err = ec.unmarshalOString2ᚖstring(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["jsonPath"] = arg0
+	var arg1 *string
+	if tmp, ok := rawArgs["jsonValue"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("jsonValue"))
+		arg1, err = ec.unmarshalOString2ᚖstring(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["jsonValue"] = arg1
+	return args, nil
+}
+
 func (ec *executionContext) field_Query_statementsq_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 *string
+	if tmp, ok := rawArgs["jsonPath"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("jsonPath"))
+		arg0, err = ec.unmarshalOString2ᚖstring(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["jsonPath"] = arg0
+	var arg1 *string
+	if tmp, ok := rawArgs["jsonValue"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("jsonValue"))
+		arg1, err = ec.unmarshalOString2ᚖstring(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["jsonValue"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_subjectsq_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
 	var arg0 *string
@@ -1314,6 +1428,201 @@ func (ec *executionContext) fieldContext_Query_statementsq(ctx context.Context, 
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_statementsq_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_objectsq(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_objectsq(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().Objectsq(rctx, fc.Args["jsonPath"].(*string), fc.Args["jsonValue"].(*string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*ent.Object)
+	fc.Result = res
+	return ec.marshalNObject2ᚕᚖzotregistryᚗioᚋzotᚋentᚐObjectᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_objectsq(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Object_id(ctx, field)
+			case "objecttype":
+				return ec.fieldContext_Object_objecttype(ctx, field)
+			case "object":
+				return ec.fieldContext_Object_object(ctx, field)
+			case "statement":
+				return ec.fieldContext_Object_statement(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Object", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_objectsq_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_predicatesq(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_predicatesq(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().Predicatesq(rctx, fc.Args["jsonPath"].(*string), fc.Args["jsonValue"].(*string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*ent.Spredicate)
+	fc.Result = res
+	return ec.marshalNSpredicate2ᚕᚖzotregistryᚗioᚋzotᚋentᚐSpredicateᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_predicatesq(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Spredicate_id(ctx, field)
+			case "predicatetype":
+				return ec.fieldContext_Spredicate_predicatetype(ctx, field)
+			case "predicate":
+				return ec.fieldContext_Spredicate_predicate(ctx, field)
+			case "statement":
+				return ec.fieldContext_Spredicate_statement(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Spredicate", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_predicatesq_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_subjectsq(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_subjectsq(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().Subjectsq(rctx, fc.Args["jsonPath"].(*string), fc.Args["jsonValue"].(*string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*ent.Subject)
+	fc.Result = res
+	return ec.marshalNSubject2ᚕᚖzotregistryᚗioᚋzotᚋentᚐSubjectᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_subjectsq(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Subject_id(ctx, field)
+			case "subjecttype":
+				return ec.fieldContext_Subject_subjecttype(ctx, field)
+			case "subject":
+				return ec.fieldContext_Subject_subject(ctx, field)
+			case "statement":
+				return ec.fieldContext_Subject_statement(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Subject", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_subjectsq_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -5486,6 +5795,72 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_statementsq(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "objectsq":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_objectsq(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "predicatesq":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_predicatesq(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "subjectsq":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_subjectsq(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
