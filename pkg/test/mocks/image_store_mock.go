@@ -54,11 +54,16 @@ type MockedImageStore struct {
 	GetNextDigestWithBlobPathsFn func(lastDigests []godigest.Digest) (godigest.Digest, []string, error)
 	MarkStatementfn              func(repo string, descriptor ispec.Descriptor, eclient *ent.Client) error
 	GetStatementDescriptorfn     func(repo string, digest godigest.Digest) ([]byte, error)
+	InitDatabasefn               func() (*ent.Client, error)
+}
+
+func (MockedImageStore) InitDatabase() (*ent.Client, error) {
+	return nil, nil
 }
 
 // GetStatementDescriptor implements types.ImageStore.
 func (MockedImageStore) GetStatementDescriptor(repo string, digest godigest.Digest) ([]byte, error) {
-	panic("unimplemented")
+	return nil, nil
 }
 
 func (is MockedImageStore) MarkStatement(repo string, descriptor ispec.Descriptor, eclient *ent.Client) error {

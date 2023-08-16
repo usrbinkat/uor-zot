@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log"
 	"os"
 	"path"
 	"path/filepath"
@@ -2108,4 +2109,19 @@ func (is *ImageStoreLocal) GetStatementDescriptor(repo string, digest godigest.D
 	fmt.Printf("read file %s\n", descriptorPath)
 
 	return file, nil
+}
+
+func (is ImageStoreLocal) InitDatabase() (*ent.Client, error) {
+	dbPath := fmt.Sprintf("file:%s/artifact-index.sqlite?_fk=1", is.rootDir)
+	client, err := ent.Open("sqlite3", dbPath)
+	if err != nil {
+		log.Fatalf("failed opening connection to sqlite: %v", err)
+	}
+	// Run the auto migration tool.
+	if err := client.Schema.Create(context.Background()); err != nil {
+		log.Fatalf("failed creating schema resources: %v", err)
+		return nil, err
+	}
+	fmt.Println("sqlite database initialized")
+	return client, nil
 }

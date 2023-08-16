@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log"
 
+	storageTypes "zotregistry.io/zot/pkg/storage/types"
+
 	_ "github.com/mattn/go-sqlite3"
 	ispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"zotregistry.io/zot/ent"
@@ -13,7 +15,7 @@ import (
 	sschema "zotregistry.io/zot/pkg/search/schema" // Only struct definitions. No ent definitions.
 )
 
-func InitDatabase() (*ent.Client, error) {
+func InitDatabase(is storageTypes.ImageStore) (*ent.Client, error) {
 	client, err := ent.Open("sqlite3", "file:ent?mode=memory&cache=shared&_fk=1")
 	if err != nil {
 		log.Fatalf("failed opening connection to sqlite: %v", err)
