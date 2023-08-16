@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"log"
 
+	_ "github.com/mattn/go-sqlite3"
 	ispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"zotregistry.io/zot/ent"
-
-	_ "github.com/mattn/go-sqlite3"
-	sschema "zotregistry.io/zot/pkg/search/schema"
+	swhere "zotregistry.io/zot/ent/statement"
+	sschema "zotregistry.io/zot/pkg/search/schema" // Only struct definitions. No ent definitions.
 )
 
 func InitDatabase() (*ent.Client, error) {
@@ -37,6 +37,21 @@ func AddStatement(statement sschema.Statement, repo string, descriptor ispec.Des
 	var mdescriptor map[string]interface{}
 	if err := json.Unmarshal(bytes, &mdescriptor); err != nil {
 		return fmt.Errorf("unmarshalling error: %v", err)
+	}
+
+	// Query existing statements with the same namespace
+	existingStatements, err := eclient.Statement.Query().
+		Where(swhere.NamespaceEQ(repo)).
+		All(ctx)
+	if err != nil {
+		return fmt.Errorf("error querying statements: %v", err)
+	}
+	for _, existingStatement := range existingStatements {
+		existingStatementJSON, _ := json.Marshal(existingStatement.Statement)
+		newStatementJSON, _ := json.Marshal(mdescriptor)
+		if string(existingStatementJSON) == string(newStatementJSON) {
+			return fmt.Errorf("duplicate statement found for namespace: %s", repo)
+		}
 	}
 
 	statementCreate := eclient.Statement.Create().SetStatement(mdescriptor).SetNamespace(repo)
