@@ -41,7 +41,7 @@ This file contains a statement example: [statement.json](./statement.json)
 
 1. Let's push this to the registry with ORAS. Remember to set the mediatype of statement.json to "application/vnd.oci.statement.v1+json" on the command line when you publish the artifact:
 ```bash
-oras push 127.0.0.1:8080/hello/test:v1 statement.json:application/vnd.oci.statement.v1+json --plain-http --verbose
+oras push 127.0.0.1:8080/hello/test:v1 statement.json:application/vnd.uor.statement.v1+json --plain-http --verbose
 ```
 2. Query the graphql endpoint for the statement. Sometimes you'll want to search by predicate, but other times, you may want to search by the object or subject of a statement. In this case, we'll search by the predicate:
 ```graphql

@@ -729,7 +729,7 @@ func (rh *RouteHandler) UpdateManifest(response http.ResponseWriter, request *ht
 		rh.c.Log.Error().Err(err).Msg("unexpected error")
 	}
 
-	targetMediaType := "application/vnd.oci.statement.v1+json"
+	targetMediaType := "application/vnd.uor.statement.v1+json"
 
 	for _, layer := range ubody.Layers {
 		if layer.MediaType == targetMediaType {
