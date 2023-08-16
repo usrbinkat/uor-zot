@@ -58,7 +58,7 @@ type Object struct {
 // instructions.
 type ResourceAddress map[string]interface{}
 
-// Statement provides `application/vnd.oci.statement.v1+json` mediatype structure when marshalled to JSON.
+// Statement provides `application/vnd.uor.statement.v1+json` mediatype structure when marshalled to JSON.
 type Statement struct {
 	specs.Versioned
 
