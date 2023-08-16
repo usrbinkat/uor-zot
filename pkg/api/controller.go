@@ -32,7 +32,6 @@ import (
 	"zotregistry.io/zot/pkg/meta"
 	mTypes "zotregistry.io/zot/pkg/meta/types"
 	"zotregistry.io/zot/pkg/scheduler"
-	ssearch "zotregistry.io/zot/pkg/search"
 	"zotregistry.io/zot/pkg/storage"
 )
 
@@ -241,7 +240,8 @@ func (c *Controller) Init(reloadCtx context.Context) error {
 
 	c.InitCVEInfo()
 	var err error
-	c.EntClient, err = ssearch.InitDatabase()
+	is := c.StoreController.DefaultStore
+	c.EntClient, err = is.InitDatabase()
 	if err != nil {
 		return err
 	}

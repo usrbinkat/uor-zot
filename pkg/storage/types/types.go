@@ -55,4 +55,5 @@ type ImageStore interface { //nolint:interfacebloat
 	GetNextDigestWithBlobPaths(lastDigests []godigest.Digest) (godigest.Digest, []string, error)
 	MarkStatement(repo string, descriptor ispec.Descriptor, eclient *ent.Client) error
 	GetStatementDescriptor(repo string, digest godigest.Digest) ([]byte, error)
+	InitDatabase() (*ent.Client, error)
 }

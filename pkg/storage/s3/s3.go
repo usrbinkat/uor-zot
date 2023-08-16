@@ -53,6 +53,11 @@ type ObjectStorage struct {
 	linter  common.Lint
 }
 
+// InitDatabase implements types.ImageStore.
+func (*ObjectStorage) InitDatabase() (*ent.Client, error) {
+	panic("unimplemented")
+}
+
 // GetStatementDescriptor implements types.ImageStore.
 func (*ObjectStorage) GetStatementDescriptor(repo string, digest godigest.Digest) ([]byte, error) {
 	panic("unimplemented")
