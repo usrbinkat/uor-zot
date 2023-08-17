@@ -4,7 +4,7 @@ This version of Zot has been modified to support enhanced Artifact search and ma
 
 ## Overview
 
-All OCI Manifests and Statement manifests with the mediatype "application/vnd.oci.statement.v1+json" are indexed and made searchable with graphql.
+All OCI Manifests and Statement manifests with the mediatype "application/vnd.uor.statement.v1+json" are indexed and made searchable with graphql.
 
 Statements are written as semantic triples. Each element of a Statement triple contains a Resource Type and the resource being described. The Resource Type contains an OCI Reference to a Resource type definition which contains the schema and interface information of the referenced resource in the statement. A resource requires a type definition for a client to understand how to interact with it. 
 
