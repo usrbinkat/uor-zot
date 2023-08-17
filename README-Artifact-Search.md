@@ -4,9 +4,12 @@ This version of Zot has been modified to support enhanced Artifact search and ma
 
 ## Overview
 
-Artifacts pushed to the registry with the statement mediatype ("application/vnd.uor.statement.v1+json") are indexed and made searchable with graphql.
+All OCI Manifests and Statement manifests with the mediatype "application/vnd.oci.statement.v1+json" are indexed and made searchable with graphql.
 
 Statements are written as semantic triples. Each element of a Statement triple contains a Resource Type and the resource being described. The Resource Type contains an OCI Reference to a Resource type definition which contains the schema and interface information of the referenced resource in the statement. A resource requires a type definition for a client to understand how to interact with it. 
+
+## POC ?
+The goal of this POC is to show how an OCI Distribution API extension can take on the characteristics of possibly any API. The Statement manifest can be thought of a header for a semantic triple, which expresses relationships between resources in an information system. This marriage of semantic triples and the OCI Distribution API allows for the creation of a registry that can be used to distribute any type of data in a fully decentralized way. Clients interacting with this decentralized content utilize a type system to understand how to dynamically interact with the data.
 
 ## Jumping into the POC
 *Must have oras.land client installed and in your path*
@@ -35,6 +38,8 @@ Statements are written as semantic triples. Each element of a Statement triple c
 # Understanding the POC
 ## Statements
 Statements are written as OCI artifacts to the registry. When a manifest is uploaded to an Registry with the mediatype "application/vnd.oci.statement.v1+json" it is indexed and made searchable via graphql. A client can also search for a statement's blob address when they query the registry's graphql endpoint.
+
+OCI Images/Artifacts are also indexed as statements. When an Image/Artifact is indexed, its manifest config is indexed as the statement's object, its manifest is indexed as the statement's predicate, and its layers are indexed as the statement's subject. Additionally, the OCI Manifest's desciptor and namespace are stored as a record with edges to its manifest config, layers, and body. This allows for a client to search for an Image/Artifact location by its manifest or layer digest.
 
 Example:
 This file contains a statement example: [statement.json](./statement.json)
@@ -77,6 +82,3 @@ As an example, if a client discovered a statement that referenced a resource on 
 
 ## Authorization
 This server's graphql responses do not yet respect the registry's namespace authorization. Do not store anything in this POC that could represent a confidentiality concern.
-
-## OCI Artifacts and Container Images
-OCI Artifacts/Images are not yet indexed in this POC. The POC will need to index these objects in order to provide reverse lookups from content address to named reference. This can be accomplished by considering an artifact/image as a triple expression that can be stored within a statement. If we consider an artifact/image as a triple, then we can assert the manifest config as the triple's object, the manifest as the triple's predicate, and the manifest's layers as the subject. Every OCI artifact/image that is published to the registry would be indexed and searchable by manifest or layer digest via graphql. 
