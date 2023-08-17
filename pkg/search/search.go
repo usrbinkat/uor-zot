@@ -31,6 +31,8 @@ func InitDatabase(is storageTypes.ImageStore) (*ent.Client, error) {
 }
 
 func AddStatement(statement sschema.Statement, repo string, descriptor ispec.Descriptor, eclient *ent.Client) error {
+	fmt.Printf("preparing to write statement: %v\n", statement)
+
 	ctx := context.Background()
 	bytes, err := json.Marshal(descriptor)
 	if err != nil {
@@ -52,13 +54,16 @@ func AddStatement(statement sschema.Statement, repo string, descriptor ispec.Des
 		existingStatementJSON, _ := json.Marshal(existingStatement.Statement)
 		newStatementJSON, _ := json.Marshal(mdescriptor)
 		if string(existingStatementJSON) == string(newStatementJSON) {
-			return fmt.Errorf("duplicate statement found for namespace: %s", repo)
+			fmt.Printf("existing statement: %v\n", existingStatement.Statement)
+			fmt.Printf("new statement: %v\n", mdescriptor)
+			fmt.Printf("duplicate statement found for namespace: %s", repo)
+			return nil
 		}
 	}
 
 	statementCreate := eclient.Statement.Create().SetStatement(mdescriptor).SetNamespace(repo)
-
-	if statement.Object.Noun != nil {
+	fmt.Printf("preparing to write statement: %v\n", statement)
+	if statement.Object != nil && statement.Object.Noun != nil {
 		object, err := eclient.Object.Create().
 			SetObject(statement.Object.Noun).
 			SetObjectType(statement.Object.ObjectType).
@@ -69,7 +74,7 @@ func AddStatement(statement sschema.Statement, repo string, descriptor ispec.Des
 		statementCreate.AddObjects(object)
 	}
 
-	if statement.Predicate.Noun != nil {
+	if statement.Predicate != nil && statement.Predicate.Noun != nil {
 		predicate, err := eclient.Spredicate.Create().
 			SetPredicate(statement.Predicate.Noun).
 			SetPredicateType(statement.Predicate.PredicateType).
@@ -80,7 +85,7 @@ func AddStatement(statement sschema.Statement, repo string, descriptor ispec.Des
 		statementCreate.AddPredicates(predicate)
 	}
 
-	if statement.Subject.Noun != nil {
+	if statement.Subject != nil && statement.Subject.Noun != nil {
 		subject, err := eclient.Subject.Create().
 			SetSubject(statement.Subject.Noun).
 			SetSubjectType(statement.Subject.SubjectType).
@@ -97,4 +102,72 @@ func AddStatement(statement sschema.Statement, repo string, descriptor ispec.Des
 	}
 
 	return nil
+}
+
+func Manifest2Statement(manifest ispec.Manifest) (sschema.Statement, error) {
+	var statement sschema.Statement
+	fmt.Println("Manifest2Statement called")
+
+	// Handle the config object
+	bConfig, err := json.Marshal(manifest.Config)
+	if err != nil {
+		return statement, fmt.Errorf("error marshalling config: %v", err)
+	}
+	fmt.Println("config marshalled")
+	mConfig := make(map[string]interface{})
+	if err := json.Unmarshal(bConfig, &mConfig); err != nil {
+		return statement, fmt.Errorf("error unmarshalling config: %v", err)
+	}
+	fmt.Println("config unmarshalled")
+	if len(mConfig) != 0 {
+		statement.Object = &sschema.Object{
+			ObjectType: manifest.Config.MediaType,
+			Noun:       mConfig,
+		}
+
+		fmt.Printf("config is: %v\n", statement.Object)
+	} else {
+		statement.Object = nil
+		fmt.Println("config is nil")
+	}
+
+	mLayers := make(map[string]interface{})
+	for i, layer := range manifest.Layers {
+		bLayer, err := json.Marshal(layer)
+		if err != nil {
+			return statement, fmt.Errorf("error marshalling layer: %v", err)
+		}
+		var layerMap map[string]interface{}
+		if err := json.Unmarshal(bLayer, &layerMap); err != nil {
+			return statement, fmt.Errorf("error unmarshalling layer: %v", err)
+		}
+		mLayers[fmt.Sprintf("layer%d", i)] = layerMap
+	}
+	statement.Subject = &sschema.Subject{
+		SubjectType: manifest.MediaType,
+		Noun:        mLayers,
+	}
+
+	fmt.Printf("layers are: %+v\n", statement.Subject)
+
+	cManifest := ispec.Manifest{}
+	cManifest = manifest
+	cManifest.Layers = nil
+	cManifest.Config = ispec.Descriptor{}
+	bManifest, err := json.Marshal(cManifest)
+	if err != nil {
+		return statement, fmt.Errorf("error marshalling manifest: %v", err)
+	}
+	mManifest := make(map[string]interface{})
+	if err := json.Unmarshal(bManifest, &mManifest); err != nil {
+		return statement, fmt.Errorf("error unmarshalling manifest: %v", err)
+	}
+	statement.Predicate = &sschema.Predicate{
+		Noun:          mManifest,
+		PredicateType: manifest.MediaType,
+	}
+
+	fmt.Printf("statement: %+v\n", statement)
+
+	return statement, nil
 }

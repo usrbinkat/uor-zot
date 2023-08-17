@@ -52,7 +52,7 @@ type MockedImageStore struct {
 	RunDedupeBlobsFn             func(interval time.Duration, sch *scheduler.Scheduler)
 	RunDedupeForDigestFn         func(digest godigest.Digest, dedupe bool, duplicateBlobs []string) error
 	GetNextDigestWithBlobPathsFn func(lastDigests []godigest.Digest) (godigest.Digest, []string, error)
-	MarkStatementfn              func(repo string, descriptor ispec.Descriptor, eclient *ent.Client) error
+	AddToIndexfn                 func(repo string, descriptor ispec.Descriptor, manifest ispec.Manifest, eclient *ent.Client) error
 	GetStatementDescriptorfn     func(repo string, digest godigest.Digest) ([]byte, error)
 	InitDatabasefn               func() (*ent.Client, error)
 }
@@ -66,7 +66,7 @@ func (MockedImageStore) GetStatementDescriptor(repo string, digest godigest.Dige
 	return nil, nil
 }
 
-func (is MockedImageStore) MarkStatement(repo string, descriptor ispec.Descriptor, eclient *ent.Client) error {
+func (is MockedImageStore) AddToIndex(repo string, descriptor ispec.Descriptor, manifest ispec.Manifest, eclient *ent.Client) error {
 	return nil
 }
 

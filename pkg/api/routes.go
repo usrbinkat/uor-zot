@@ -722,21 +722,17 @@ func (rh *RouteHandler) UpdateManifest(response http.ResponseWriter, request *ht
 
 		return
 	}
+	desc := ispec.Descriptor{
+		MediaType: mediaType, Size: int64(len(body)), Digest: digest,
+	}
 
-	// If there is a statement, mark its blob.
 	ubody := ispec.Manifest{}
 	if err := json.Unmarshal(body, &ubody); err != nil {
-		rh.c.Log.Error().Err(err).Msg("unexpected error")
+		rh.c.Log.Error().Err(err).Msg("unable to unmarshal manifest")
 	}
-
-	targetMediaType := "application/vnd.uor.statement.v1+json"
-
-	for _, layer := range ubody.Layers {
-		if layer.MediaType == targetMediaType {
-			imgStore.MarkStatement(name, layer, rh.c.EntClient)
-		}
+	if err := imgStore.AddToIndex(name, desc, ubody, rh.c.EntClient); err != nil {
+		rh.c.Log.Error().Err(err).Msg("manifest indexing failed")
 	}
-
 	if rh.c.MetaDB != nil {
 		err := meta.OnUpdateManifest(name, reference, mediaType, digest, body, rh.c.StoreController, rh.c.MetaDB,
 			rh.c.Log)

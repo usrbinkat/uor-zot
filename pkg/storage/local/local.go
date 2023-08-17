@@ -2031,62 +2031,39 @@ func (is *ImageStoreLocal) RunDedupeBlobs(interval time.Duration, sch *scheduler
 	}
 }
 
-// MarkStatment creates a file in the blobs directory that indicates a statement.
-func (is *ImageStoreLocal) MarkStatement(repo string, descriptor ispec.Descriptor, eclient *ent.Client) error {
-	//var lockLatency time.Time
+// AddToIndex creates a file in the blobs directory that indicates a statement.
+func (is *ImageStoreLocal) AddToIndex(repo string, mdescriptor ispec.Descriptor, manifest ispec.Manifest, eclient *ent.Client) error {
 
-	/*
-		fmt.Println("MarkStatement called")
+	targetMediaType := "application/vnd.uor.statement.v1+json"
+	for _, layer := range manifest.Layers {
+		if layer.MediaType == targetMediaType {
+			statement, err := is.GetBlobContent(repo, layer.Digest)
+			if err != nil {
+				fmt.Println("error getting blob content")
+				return err
+			}
 
-		if err := descriptor.Digest.Validate(); err != nil {
-			return err
-		}
+			ustatement := schema.Statement{}
+			if err := json.Unmarshal(statement, &ustatement); err != nil {
+				fmt.Println("error unmarshalling statement")
+				return err
+			}
+			fmt.Printf("unmarshalled statement: %v\n", ustatement)
 
-		blobPath := is.BlobPath(repo, descriptor.Digest+".statement")
-		fmt.Printf("blobPath: %s\n", blobPath)
+			if err := search.AddStatement(ustatement, repo, layer, eclient); err != nil {
+				fmt.Printf("add statment err: %s", err)
 
-		is.Lock(&lockLatency)
-		defer is.Unlock(&lockLatency)
-
-		_, err := os.Stat(blobPath)
-		if err != nil {
-			fmt.Println("blob does not exist")
-			is.log.Debug().Err(err).Str("blob", blobPath).Msg("failed to stat blob")
-		} else {
-			if ok, _ := common.IsBlobReferenced(is, repo, descriptor.Digest, is.log); ok {
-				return zerr.ErrBlobReferenced
 			}
 		}
-
-	*/
-
-	//file, _ := json.Marshal(descriptor)
-	//if err := is.writeFile(blobPath, []byte(file)); err != nil {
-	//	is.log.Error().Err(err).Str("file", blobPath).Msg("unable to write")
-	//	fmt.Printf("unable to write file %s\n", blobPath)
-	//	return err
-	//} else {
-	//	fmt.Printf("wrote file %s\n", blobPath)
-	//}
-
-	statement, err := is.GetBlobContent(repo, descriptor.Digest)
+	}
+	fmt.Printf("preparing to write manifest: %v\n", manifest)
+	mStatement, err := search.Manifest2Statement(manifest)
 	if err != nil {
-		fmt.Println("error getting blob content")
-		return err
+		fmt.Printf("error converting manifest to statement: %s", err)
 	}
-
-	ustatement := schema.Statement{}
-	if err := json.Unmarshal(statement, &ustatement); err != nil {
-		fmt.Println("error unmarshalling statement")
-		return err
+	if err := search.AddStatement(mStatement, repo, mdescriptor, eclient); err != nil {
+		fmt.Printf("manifest indexing err: %s", err)
 	}
-	fmt.Printf("unmarshalled statement: %v\n", ustatement)
-
-	if err := search.AddStatement(ustatement, repo, descriptor, eclient); err != nil {
-		fmt.Printf("add statment err: %s", err)
-
-	}
-
 	return nil
 }
 

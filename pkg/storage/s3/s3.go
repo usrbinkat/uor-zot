@@ -64,7 +64,7 @@ func (*ObjectStorage) GetStatementDescriptor(repo string, digest godigest.Digest
 }
 
 // MarkStatement implements types.ImageStore.
-func (*ObjectStorage) MarkStatement(repo string, descriptor ispec.Descriptor, eclient *ent.Client) error {
+func (*ObjectStorage) AddToIndex(repo string, descriptor ispec.Descriptor, manifest ispec.Manifest, eclient *ent.Client) error {
 	panic("unimplemented")
 }
 
