@@ -14,14 +14,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/99designs/gqlgen/graphql/handler"
-	"github.com/99designs/gqlgen/graphql/playground"
-
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
 	"github.com/zitadel/oidc/pkg/client/rp"
-	zroot "zotregistry.io/zot"
 
 	"zotregistry.io/zot/ent"
 	"zotregistry.io/zot/errors"
@@ -245,19 +241,20 @@ func (c *Controller) Init(reloadCtx context.Context) error {
 	if err != nil {
 		return err
 	}
-	serve := handler.NewDefaultServer(zroot.NewSchema(c.EntClient))
-	http.Handle("/poc",
-		playground.Handler("Zot", "/query"),
-	)
-	http.Handle("/query", serve)
-	fmt.Println("listening on :8081")
+	/*
+		serve := handler.NewDefaultServer(zroot.NewSchema(c.EntClient))
+		http.Handle("/poc",
+			playground.Handler("Zot", "/query"),
+		)
+		http.Handle("/query", serve)
+		fmt.Println("listening on :8081")
 
-	go func() {
-		if err := http.ListenAndServe(":8081", nil); err != nil {
-			fmt.Printf("http server terminated: %v", err)
-		}
-	}()
-
+		go func() {
+			if err := http.ListenAndServe(":8081", nil); err != nil {
+				fmt.Printf("http server terminated: %v", err)
+			}
+		}()
+	*/
 	return nil
 }
 
