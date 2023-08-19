@@ -2,6 +2,7 @@ package requestcontext
 
 import (
 	"context"
+	"fmt"
 
 	glob "github.com/bmatcuk/doublestar/v4" //nolint:gci
 
@@ -37,7 +38,9 @@ its methods and attributes can be used in http.Handlers to get user info for tha
 (username, groups, if it's an admin, if it can access certain resources).
 */
 func GetAccessControlContext(ctx context.Context) (*AccessControlContext, error) {
+	fmt.Printf("GetAccessControlContext: %v\n", ctx)
 	authzCtxKey := GetContextKey()
+	fmt.Printf("authzCtxKey: %v\n", authzCtxKey)
 	if authCtx := ctx.Value(authzCtxKey); authCtx != nil {
 		acCtx, ok := authCtx.(AccessControlContext)
 		if !ok {
@@ -45,9 +48,10 @@ func GetAccessControlContext(ctx context.Context) (*AccessControlContext, error)
 		}
 
 		return &acCtx, nil
+	} else {
+		fmt.Printf("authCtx: %v\n", authCtx)
+		return nil, nil //nolint: nilnil
 	}
-
-	return nil, nil //nolint: nilnil
 }
 
 // returns whether or not the user/anonymous who made the request has read permission on 'repository'.

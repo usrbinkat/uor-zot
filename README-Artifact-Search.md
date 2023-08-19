@@ -15,7 +15,7 @@ The goal of this POC is to show how an OCI Distribution API extension can take o
 *Must have oras.land client installed and in your path*
 1. Build it: `make build binary`
 2. Run it: `./artifact-test.sh`
-3. Open it: http://localhost:8081/poc
+3. Open it: http://localhost:8080/poc
 4. Query it:
 ```graphql
 {
@@ -37,14 +37,14 @@ The goal of this POC is to show how an OCI Distribution API extension can take o
 ```
 # Understanding the POC
 ## Statements
-Statements are written as OCI artifacts to the registry. When a manifest is uploaded to an Registry with the mediatype "application/vnd.oci.statement.v1+json" it is indexed and made searchable via graphql. A client can also search for a statement's blob address when they query the registry's graphql endpoint.
+Statements are written as OCI artifacts to the registry. When a manifest is uploaded to an Registry with the mediatype "application/vnd.uor.statement.v1+json" it is indexed and made searchable via graphql. A client can also search for a statement's blob address when they query the registry's graphql endpoint.
 
 OCI Images/Artifacts are also indexed as statements. When an Image/Artifact is indexed, its manifest config is indexed as the statement's object, its manifest is indexed as the statement's predicate, and its layers are indexed as the statement's subject. Additionally, the OCI Manifest's desciptor and namespace are stored as a record with edges to its manifest config, layers, and body. This allows for a client to search for an Image/Artifact location by its manifest or layer digest.
 
 Example:
 This file contains a statement example: [statement.json](./statement.json)
 
-1. Let's push this to the registry with ORAS. Remember to set the mediatype of statement.json to "application/vnd.oci.statement.v1+json" on the command line when you publish the artifact:
+1. Let's push this to the registry with ORAS. Remember to set the mediatype of statement.json to "application/vnd.uor.statement.v1+json" on the command line when you publish the artifact:
 ```bash
 oras push 127.0.0.1:8080/hello/test:v1 statement.json:application/vnd.uor.statement.v1+json --plain-http --verbose
 ```
@@ -81,4 +81,4 @@ Resource types are not yet implemented in the POC. When they are, they convey a 
 As an example, if a client discovered a statement that referenced a resource on blockchain, it would retrieve the resource's type definition, that would have a reference to an interface for interacting with the resource. The client would then retrieve the interface and use it to interact with the resource. Depending on the situation, the interface could be used for CRUD operations or interacting with the resource in other ways, such as running the resource (if it were executable).
 
 ## Authorization
-This server's graphql responses do not yet respect the registry's namespace authorization. Do not store anything in this POC that could represent a confidentiality concern.
+Initial integration has been made with Zot's authorization model. If a user would be unauthorized to download a statement via the manifest/blobs endpoint, they should be unauthorized to view or discover that statement via the graphql endpoint. 
