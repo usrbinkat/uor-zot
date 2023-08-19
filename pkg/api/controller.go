@@ -235,26 +235,14 @@ func (c *Controller) Init(reloadCtx context.Context) error {
 	}
 
 	c.InitCVEInfo()
+
 	var err error
 	is := c.StoreController.DefaultStore
 	c.EntClient, err = is.InitDatabase()
 	if err != nil {
 		return err
 	}
-	/*
-		serve := handler.NewDefaultServer(zroot.NewSchema(c.EntClient))
-		http.Handle("/poc",
-			playground.Handler("Zot", "/query"),
-		)
-		http.Handle("/query", serve)
-		fmt.Println("listening on :8081")
 
-		go func() {
-			if err := http.ListenAndServe(":8081", nil); err != nil {
-				fmt.Printf("http server terminated: %v", err)
-			}
-		}()
-	*/
 	return nil
 }
 

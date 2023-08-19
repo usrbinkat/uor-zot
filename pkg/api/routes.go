@@ -167,7 +167,7 @@ func (rh *RouteHandler) SetupRoutes() {
 	rh.c.Router.Handle("/poc",
 		playground.Handler("Zot", "/query"),
 	)
-	rh.c.Router.Handle("/query", serve)
+	rh.c.Router.Handle("/query", rh.c.GraphQLAuthzMiddleware(serve)) // Wrap the serve handler with the middleware
 
 	// Setup Extensions Routes
 	if rh.c.Config != nil {

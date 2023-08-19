@@ -1,16 +1,20 @@
 package api
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
 	"net/http"
 
+	"github.com/99designs/gqlgen/graphql"
 	glob "github.com/bmatcuk/doublestar/v4"
 	"github.com/gorilla/mux"
-
 	"zotregistry.io/zot/pkg/api/config"
 	"zotregistry.io/zot/pkg/common"
 	"zotregistry.io/zot/pkg/log"
 	localCtx "zotregistry.io/zot/pkg/requestcontext"
+	sschema "zotregistry.io/zot/pkg/search/schema"
 )
 
 const (
@@ -384,4 +388,113 @@ func DistSpecAuthzHandler(ctlr *Controller) mux.MiddlewareFunc {
 			}
 		})
 	}
+}
+
+// responseWriter captures the response body.
+type responseWriter struct {
+	http.ResponseWriter
+	body *bytes.Buffer
+}
+
+// Write captures the response body and writes it to the original response writer.
+func (rw *responseWriter) Write(b []byte) (int, error) {
+	rw.body.Write(b)
+	return rw.ResponseWriter.Write(b)
+}
+
+// filterStatements filters the statements based on user authorization.
+func (ac *AccessController) filterStatements(ctx context.Context, statements []sschema.StatementRecord) []sschema.StatementRecord {
+	fmt.Println("filterStatements called")
+	// Extract the user's authorization from the context.
+	acCtx, err := localCtx.GetAccessControlContext(ctx)
+	if err != nil {
+		fmt.Printf("error getting access control context: %v\n", err)
+		return nil
+	}
+	if acCtx == nil {
+		fmt.Println("access control context is nil")
+		return statements
+	}
+	fmt.Printf("username: %s\n", acCtx.Username)
+
+	// Filter the statements based on the user's authorization.
+	var filteredStatements []sschema.StatementRecord
+	for _, statement := range statements {
+		namespace := statement.Location.Namespace
+		if acCtx.CanReadRepo(namespace) {
+			filteredStatements = append(filteredStatements, statement)
+		}
+	}
+
+	return filteredStatements
+}
+
+type customResponseWriter struct {
+	http.ResponseWriter
+	status int
+	body   *bytes.Buffer
+}
+
+func (rw *customResponseWriter) WriteHeader(status int) {
+	rw.status = status
+	rw.ResponseWriter.WriteHeader(status)
+}
+
+func (rw *customResponseWriter) Write(b []byte) (int, error) {
+	if rw.status == 0 {
+		rw.status = http.StatusOK
+	}
+	fmt.Printf("responsewriter write: %s\n", rw.body.String())
+	return rw.ResponseWriter.Write(b)
+}
+
+func (controller *Controller) GraphQLAuthzMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Create a buffer to capture the response body.
+		bodyBuffer := new(bytes.Buffer)
+
+		// Create a custom response writer to capture the response status and body.
+		crw := &customResponseWriter{
+			ResponseWriter: w,
+			body:           bodyBuffer,
+		}
+
+		// Call the next handler in the chain.
+
+		next.ServeHTTP(crw, r)
+
+		// Extract and parse the response body.
+		responseBody := bodyBuffer.Bytes()
+
+		// Extract the user's authorization from the context.
+		acCtx, err := localCtx.GetAccessControlContext(r.Context())
+		if err != nil || acCtx == nil {
+			// If there is no authCtx, return the original response.
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK) // Or use the appropriate status code
+
+			_, err := w.Write(responseBody)
+			if err != nil {
+				fmt.Printf("error writing response body: %v\n", err)
+			}
+			return // Return here to prevent further processing
+		}
+
+		// Continue with the filtering logic if authCtx is present.
+		ac := NewAccessController(controller.Config)
+		var response graphql.Response
+		json.Unmarshal(responseBody, &response)
+		var statements []sschema.StatementRecord
+		json.Unmarshal(response.Data, &statements)
+		filteredStatements := ac.filterStatements(r.Context(), statements)
+		response.Data, err = json.Marshal(filteredStatements)
+		if err != nil {
+			fmt.Printf("error marshalling filtered statements: %v\n", err)
+			return
+		}
+		filteredResponse, _ := json.Marshal(response)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK) // Or use the appropriate status code
+		w.Write(filteredResponse)
+	})
 }
