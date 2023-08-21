@@ -1,14 +1,14 @@
 # ---
 # Stage 1: Install certs, build binary, create default config file
 # ---
-FROM ghcr.io/project-zot/golang:1.20 AS builder
-ARG COMMIT
-ARG OS
-ARG ARCH
+FROM golang:bullseye AS builder
+#ARG COMMIT
+#ARG OS
+#ARG ARCH
 RUN mkdir -p /go/src/github.com/project-zot/zot
 WORKDIR /go/src/github.com/project-zot/zot
 COPY . .
-RUN make COMMIT=$COMMIT OS=$OS ARCH=$ARCH clean binary
+RUN make build binary
 RUN echo '{\n\
     "storage": {\n\
         "rootDirectory": "/var/lib/registry"\n\
@@ -26,10 +26,10 @@ RUN echo '{\n\
 # Stage 2: Final image with nothing but certs, binary, and default config file
 # ---
 FROM gcr.io/distroless/base AS final
-ARG OS
-ARG ARCH
+#ARG OS
+#ARG ARCH
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
-COPY --from=builder /go/src/github.com/project-zot/zot/bin/zot-$OS-$ARCH /usr/bin/zot
+COPY --from=builder /go/src/github.com/project-zot/zot/bin/zot-linux-amd64 /usr/bin/zot
 COPY --from=builder /go/src/github.com/project-zot/zot/config.json /etc/zot/config.json
 ENTRYPOINT ["/usr/bin/zot"]
 EXPOSE 5000

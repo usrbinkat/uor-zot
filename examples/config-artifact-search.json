@@ -1,0 +1,59 @@
+{
+    "distSpecVersion": "1.1.0-dev",
+    "storage": {
+      "rootDirectory": "/tmp/zot",
+      "dedupe": true
+    },
+    "http": {
+      "address": "127.0.0.1",
+      "port": "8080",
+      "realm": "zot",
+      "tls": {
+        "cert": "server.cert",
+        "key": "server.key"
+      },
+      "auth": {
+        "htpasswd": {
+          "path": "/home/alex/dev/personal-dash/zot.htpasswd"
+        },
+        "openid": {
+          "providers": {
+            "google": {
+              "issuer": "https://accounts.google.com",
+              "clientid": "$oidc_client_id",
+              "clientsecret": "$oidc_client_secret",
+              "scopes": ["openid", "email"]
+            }
+          }
+        },
+        "failDelay": 5
+      },
+      "accessControl": {
+        "repositories": {
+          "**": {
+            "policies": [
+            ],
+            "defaultPolicy": ["read", "create"]
+          }
+        }
+      }
+    },
+    "log": {
+      "level": "debug"
+    },
+    "extensions": {
+      "apikey": {
+        "enable": true
+      },
+      "mgmt": {
+        "enable": true
+      },
+      "ui": {
+        "enable": true
+      },
+      "search": {
+        "enable": true
+      }
+    }
+  }
+  
