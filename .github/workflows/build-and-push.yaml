@@ -3,6 +3,10 @@ on:
   push:
     branches:
       - main
+permissions:
+  contents: read
+  packages: write
+  id-token: write
 jobs:
   publish-zot-image:
     runs-on: ubuntu-latest
