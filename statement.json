@@ -10,7 +10,8 @@
     "predicate":{
         "predicateType": "localhost/testpredicate/type:v1",
         "noun":{
-            "test": "test predicate"
+            "test": "test predicate",
+            "test2": "test predicate 2"
         }
     },
     "object":{

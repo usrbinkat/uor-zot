@@ -48,7 +48,7 @@ type CustomContext struct {
 func JSONExtractEquals(column, path, value string) sql.Predicate {
 	return *sql.P(func(b *sql.Builder) {
 		// Construct the SQL expression for JSON extraction.
-		jsonQuery := fmt.Sprintf(`json_extract(%s, "$.%s") = ?`, column, path)
+		jsonQuery := fmt.Sprintf(`json_extract(%s, "$.%s") LIKE ?`, column, path)
 		b.WriteString(jsonQuery)
 		b.Args(value)
 	})
@@ -64,13 +64,12 @@ func HasJSONValue(column, path, value string) *statementHasJSONValue {
 	return &statementHasJSONValue{
 		column: column,
 		path:   path,
-		value:  value,
-	}
+		value:  "%" + value + "%"}
 }
 
 // This is where we implement the sql.Predicate interface
 func (s *statementHasJSONValue) Eval(builder *sql.Builder) {
-	jsonQuery := fmt.Sprintf(`json_extract(%s, "$.%s") = `, s.column, s.path)
+	jsonQuery := fmt.Sprintf(`json_extract(%s, "$.%s") LIKE `, s.column, s.path)
 	builder.WriteString(jsonQuery)
 	builder.Args(s.value)
 	fmt.Printf("builder: %v\n", builder)
@@ -81,7 +80,7 @@ func (s *statementHasJSONValue) P() *sql.Predicate {
 }
 
 func (s *statementHasJSONValue) SQL() (string, []interface{}) {
-	jsonQuery := fmt.Sprintf(`json_extract(%s, "$.%s") = ?`, s.column, s.path)
+	jsonQuery := fmt.Sprintf(`json_extract(%s, "$.%s") LIKE ?`, s.column, s.path)
 	return jsonQuery, []interface{}{s.value}
 }
 
