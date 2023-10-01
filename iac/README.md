@@ -6,8 +6,8 @@ This IaC project leverages the power of Pulumi and KinD (Kubernetes in Docker) t
 
 ### 📊 What It Solves
 
-- **Rapid Prototyping**: Ideal for developers who need to quickly spin up a Kubernetes cluster.
-- **Local Development**: Perfect for testing Kubernetes deployments locally.
+- **Rapid Prototyping**: Ideal for developing Zot on Kubernetes.
+- **Local Development**: Perfect for testing locally on Kind Kubernetes.
 - **Automation**: Easily integrate into CI/CD pipelines.
 
 ## 🚀 Getting Started
