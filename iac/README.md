@@ -14,6 +14,29 @@ This IaC project leverages the power of Pulumi and KinD (Kubernetes in Docker) t
 
 These instructions will help you set up a KinD cluster using this IaC project.
 
+```bash
+usrbinkat@mordor:~/uor-zot/iac$ time pulumi up -y
+Updating (dev)
+
+     Type                              Name                           Status              Info
+ +   pulumi:pulumi:Stack               zot-dev                        created (0.36s)     14 messages
+ +   ├─ my:kind:KindCluster            default-cluster                created (42s)       
+ +   │  ├─ command:local:Command       default-cluster-deleteCluster  created (0.14s)     
+ +   │  └─ command:local:Command       default-cluster-createCluster  created (42s)       
+ +   ├─ command:local:Command          default-cluster-volumeCheck    created (0.36s)     
+ +   ├─ kubernetes:apps/v1:Deployment  zot-deployment                 created (27s)       
+ +   └─ kubernetes:core/v1:Service     zot-service                    created (10s)       
+
+Resources:
+    + 7 created
+
+Duration: 1m29s
+
+real    1m38.564s
+user    0m1.734s
+sys     0m1.302s
+```
+
 ### 📋 Prerequisites
 
 - [Go](https://golang.org/dl/) - v1.16+
