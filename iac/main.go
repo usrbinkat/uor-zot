@@ -7,6 +7,7 @@ import (
 
 	"github.com/emporous/uor-zot/iac/helper"
 	"github.com/emporous/uor-zot/iac/kind"
+	"github.com/emporous/uor-zot/iac/zot"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
 
@@ -24,10 +25,17 @@ func runProgram(ctx *pulumi.Context) error {
 	ctx.Log.Info("Initialization and dependency checks are complete", nil)
 
 	// Configure and create the Kind cluster
-	if err := kind.ConfigureAndCreateCluster(ctx); err != nil {
+	kindClusterResource, err := kind.ConfigureAndCreateCluster(ctx)
+	if err != nil {
 		return fmt.Errorf("Failed during Kind cluster creation: %w", err)
 	}
 	ctx.Log.Info("Ready to build Kind cluster", nil)
+
+	// Deploy Zot OCI registry
+	if err := zot.DeployZotRegistry(ctx, pulumi.DependsOn([]pulumi.Resource{kindClusterResource})); err != nil {
+		return fmt.Errorf("Failed to deploy Zot OCI registry: %w", err)
+	}
+	ctx.Log.Info("Zot OCI registry deployed successfully", nil)
 
 	return nil
 }
@@ -64,6 +72,6 @@ func initialize(ctx *pulumi.Context) error {
 		}
 	}
 
-	ctx.Log.Info("All dependencies are confirmed to be installed", nil)
+	ctx.Log.Info("Successfully detected all local dependencies.", nil)
 	return nil
 }

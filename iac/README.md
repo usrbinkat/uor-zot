@@ -38,19 +38,19 @@ These instructions will help you set up a KinD cluster using this IaC project.
     go mod tidy
     ```
 
-2. **Initialize Pulumi**
+3. **Initialize Pulumi**
 
     ```bash
     pulumi stack init dev
     ```
 
-3. **Run Pulumi**
+4. **Run Pulumi**
 
     ```bash
     pulumi up
     ```
 
-4. **Check Your Cluster**
+5. **Check Your Cluster**
 
     ```bash
     kubectl get nodes

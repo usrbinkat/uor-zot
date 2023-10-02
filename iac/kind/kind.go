@@ -11,26 +11,26 @@ import (
 )
 
 // ConfigureAndCreateCluster initializes the Kind cluster configuration and creates the cluster.
-func ConfigureAndCreateCluster(ctx *pulumi.Context) error {
+func ConfigureAndCreateCluster(ctx *pulumi.Context) (*helper.KindCluster, error) {
 	ctx.Log.Info("Starting Kind cluster configuration...", nil)
 
 	cfg := config.New(ctx, "")              // Initialize Pulumi config using the correct package
 	kindArgs, err := helper.LoadConfig(cfg) // Pass the correct type
 	if err != nil {
-		return fmt.Errorf("Failed to load Kind cluster configuration: %w", err)
+		return nil, fmt.Errorf("Failed to load Kind cluster configuration: %w", err)
 	}
 
-	if err := CreateKindCluster(ctx, kindArgs); err != nil {
-		return fmt.Errorf("Error occurred during Kind cluster creation: %w", err)
+	kindClusterResource, err := CreateKindCluster(ctx, kindArgs)
+	if err != nil {
+		return nil, fmt.Errorf("Error occurred during Kind cluster creation: %w", err)
 	}
 	ctx.Log.Info("Kind cluster configuration is ready", nil)
-	return nil
+	return kindClusterResource, nil
 }
 
 // CreateKindCluster is an entry point function for creating a Kind cluster.
-func CreateKindCluster(ctx *pulumi.Context, args *helper.KindClusterArgs) error {
-	_, err := NewKindCluster(ctx, args.ClusterName, args)
-	return err
+func CreateKindCluster(ctx *pulumi.Context, args *helper.KindClusterArgs) (*helper.KindCluster, error) {
+	return NewKindCluster(ctx, args.ClusterName, args)
 }
 
 // NewKindCluster creates and manages a Kind cluster.

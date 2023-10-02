@@ -37,6 +37,10 @@ nodes:
       protocol: TCP
       hostPort: 443
       containerPort: 443
+    - listenAddress: "0.0.0.0"
+      protocol: TCP
+      hostPort: 30000
+      containerPort: 30000
     # We are going to add an ingress label to this node
     kubeadmConfigPatches:
     - |
