@@ -2,7 +2,7 @@
 
 ## 🌟 Overview
 
-This IaC project leverages the power of Pulumi and KinD (Kubernetes in Docker) to provision Kubernetes clusters swiftly and reliably. In a single command, you can go from zero to having a fully functional Kubernetes cluster right on your local machine or cloud environment, complete with configurable Docker volumes.
+This Infrastructure as Code (IaC) project leverages the power of Pulumi and KinD (Kubernetes in Docker) to provision a Zot service and accompanying resources for Zot development and testing.
 
 ### 📊 What It Solves
 
@@ -12,30 +12,30 @@ This IaC project leverages the power of Pulumi and KinD (Kubernetes in Docker) t
 
 ## 🚀 Getting Started
 
-These instructions will help you set up a KinD cluster using this IaC project.
+These instructions will help you set up a Zot on KinD cluster.
 
-```bash
-usrbinkat@mordor:~/uor-zot/iac$ time pulumi up -y
-Updating (dev)
-
-     Type                              Name                           Status              Info
- +   pulumi:pulumi:Stack               zot-dev                        created (0.36s)     14 messages
- +   ├─ my:kind:KindCluster            default-cluster                created (42s)       
- +   │  ├─ command:local:Command       default-cluster-deleteCluster  created (0.14s)     
- +   │  └─ command:local:Command       default-cluster-createCluster  created (42s)       
- +   ├─ command:local:Command          default-cluster-volumeCheck    created (0.36s)     
- +   ├─ kubernetes:apps/v1:Deployment  zot-deployment                 created (27s)       
- +   └─ kubernetes:core/v1:Service     zot-service                    created (10s)       
-
-Resources:
-    + 7 created
-
-Duration: 1m29s
-
-real    1m38.564s
-user    0m1.734s
-sys     0m1.302s
-```
+    ```bash
+    usrbinkat@mordor:~/uor-zot/iac$ time pulumi up -y
+    Updating (dev)
+    
+         Type                              Name                           Status              Info
+     +   pulumi:pulumi:Stack               zot-dev                        created (0.36s)     14 messages
+     +   ├─ my:kind:KindCluster            default-cluster                created (42s)       
+     +   │  ├─ command:local:Command       default-cluster-deleteCluster  created (0.14s)     
+     +   │  └─ command:local:Command       default-cluster-createCluster  created (42s)       
+     +   ├─ command:local:Command          default-cluster-volumeCheck    created (0.36s)     
+     +   ├─ kubernetes:apps/v1:Deployment  zot-deployment                 created (27s)       
+     +   └─ kubernetes:core/v1:Service     zot-service                    created (10s)       
+    
+    Resources:
+        + 7 created
+    
+    Duration: 1m29s
+    
+    real    1m38.564s
+    user    0m1.734s
+    sys     0m1.302s
+    ```
 
 ### 📋 Prerequisites
 
@@ -86,12 +86,14 @@ sys     0m1.302s
 1. **Pulumi**: Orchestrates the provisioning.
 2. **KinD**: Creates a local Kubernetes cluster using Docker containers.
 3. **Go**: The IaC logic is written in Go, leveraging Pulumi's Go SDK.
+4. **Zot**: The Zot service is deployed to the cluster.
 
 ### 🔨 Code Structure
 
-- `kind/kind.go`: Core logic for KinD cluster creation.
-- `kind/volumes.go`: Manages Docker volumes for the KinD cluster.
-- `helper/helper.go`: Utility functions and types.
+- `kind/kind.go`: KinD cluster creation.
+- `kind/volumes.go`: Accelerate kind cluster builds with stateful containerd storage volume.
+- `helper/helper.go`: Utility functions.
+- `zot/zot.go`: Zot service deployment.
 
 ### 📈 Workflow
 
@@ -99,10 +101,11 @@ sys     0m1.302s
 2. **Load Cluster Config**: Reads the desired Kind cluster setup.
 3. **Manage Docker Volumes**: Checks, creates, or deletes Docker volumes as needed.
 4. **Create/Delete KinD Cluster**: Uses Pulumi's `local.Command` to run the KinD CLI commands.
+5. **Create/Delete Zot Service**: Deploy Zot to k8s with Pulumi's `kubernetes.apps.v1.{Service,Deployment}` resources.
 
 ## 📜 Customizing the Cluster
 
-For now, the code is set up to create a cluster with a default configuration. Customizations will be added in future releases.
+For now, the code is set up to deploy a basic zot configuration. Customizations will be added in future releases.
 
 ## 🤝 Contributing
 
